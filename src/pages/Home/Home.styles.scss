@@ -1,11 +1,12 @@
 #home-wrapper {
     display: flex;
-    width: 100vw;
+    flex-direction: column;
     height: 100vh;
+    width: 95%;
+    margin: 0 auto;
 
-    overflow: auto;
-}
-
-body{
-    background: yellow;
+    .MuiPaper-root {
+        flex: 1;
+        overflow: auto;
+    }
 }

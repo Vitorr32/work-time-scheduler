@@ -9,13 +9,16 @@ import {
     Appointments,
     Toolbar,
     ViewSwitcher,
+    MonthView,
 } from '@devexpress/dx-react-scheduler-material-ui';
+import { Header } from '../../components/Header/Header.component';
+import moment from 'moment';
 import './Home.styles.scss';
 
-const currentDate = '2018-11-01';
 const schedulerData = [
-    { startDate: '2018-11-01T09:45', endDate: '2018-11-01T11:00', title: 'Meeting' },
-    { startDate: '2018-11-01T12:00', endDate: '2018-11-01T13:30', title: 'Go to a gym' },
+    { startDate: moment().set('hour', 0).set('minute', 0), endDate: moment().set('hour', 8).set('minute', 0), title: 'Sleep' },
+    { startDate: moment().set('hour', 8).set('minute', 0), endDate: moment().set('hour', 16).set('minute', 0), title: 'Work' },
+    { startDate: moment().set('hour', 16).set('minute', 0), endDate: moment().set('hour', 24).set('minute', 0), title: 'Fun' },
 ];
 
 export default class HomeComponent extends React.Component {
@@ -23,22 +26,19 @@ export default class HomeComponent extends React.Component {
     render() {
         return (
             <div id="home-wrapper">
+                <Header></Header>
                 <Paper>
                     <Scheduler
-                        data={schedulerData}
-                    >
+                        locale={"en-UK"}
+                        data={schedulerData}>
                         <ViewState
-                            defaultCurrentDate="2018-07-25"
                             defaultCurrentViewName="Week"
                         />
-                        <DayView
-                            startDayHour={9}
-                            endDayHour={18}
-                        />
-                        <WeekView
-                            startDayHour={10}
-                            endDayHour={19}
-                        />
+
+                        <DayView />
+                        <WeekView />
+                        <MonthView />
+
                         <Toolbar />
                         <ViewSwitcher />
                         <Appointments />

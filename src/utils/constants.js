@@ -1,0 +1,1 @@
+export const schedulerDateFormat = 'YYYY-MM-DDTHH:mm'
