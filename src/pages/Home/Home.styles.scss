@@ -9,4 +9,16 @@
         flex: 1;
         overflow: auto;
     }
+
+    .sleep-period {
+        background-color: #a7a7a747;
+    }
+
+    .work-period{
+        background-color: purple;
+    }
+
+    .free-period{
+        background-color: lightgreen;
+    }
 }
