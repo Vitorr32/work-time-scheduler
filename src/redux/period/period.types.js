@@ -1,3 +1,2 @@
 export const SET_WORK_PERIOD = 'SET_WORK_PERIOD';
 export const SET_FREE_PERIOD = 'SET_FREE_PERIOD';
-export const SET_SLEEP_PERIOD = 'SET_SLEEP_PERIOD';

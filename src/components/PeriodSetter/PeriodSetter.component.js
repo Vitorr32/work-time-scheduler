@@ -1,9 +1,10 @@
 import { Button, Form, Modal, TimePicker } from 'antd';
 import React from 'react';
 import { connect } from 'react-redux';
-import { setFreePeriod, setSleepPeriod, setWorkPeriod } from '../../redux/period/period.actions';
+import { setFreePeriod, setWorkPeriod } from '../../redux/period/period.actions';
 import { KeyboardTimePicker } from '@material-ui/pickers';
 import * as PeriodType from '../../utils/PeriodType';
+import moment from 'moment';
 
 import './PeriodSetter.styles.scss';
 
@@ -21,17 +22,15 @@ class PeriodSetter extends React.Component {
     }
 
     onFormSubmit(values) {
-        console.log(values);
         switch (this.props.periodType) {
             case PeriodType.WORK_PERIOD:
-                this.props.setWorkPeriod({ start: values.periodRange[0], end: values.periodRange[1] })
+                this.props.setWorkPeriod({ start: values.periodRange[0].get('hours'), end: values.periodRange[1].get('hours') })
                 break;
             case PeriodType.FREE_PERIOD:
-                this.props.setFreePeriod({ start: values.periodRange[0], end: values.periodRange[1] })
+                this.props.setFreePeriod({ start: values.periodRange[0].get('hours'), end: values.periodRange[1].get('hours') })
                 break;
             case PeriodType.SLEEP_PERIOD:
                 break;
-
             default:
                 break;
         }
@@ -43,8 +42,6 @@ class PeriodSetter extends React.Component {
                 return 'Free';
             case PeriodType.WORK_PERIOD:
                 return 'Work';
-            case PeriodType.SLEEP_PERIOD:
-                return 'Sleep'
         }
     }
 
@@ -61,7 +58,6 @@ class PeriodSetter extends React.Component {
                     onOk={() => {
                         this.formRef.current.validateFields()
                             .then(values => {
-                                this.formRef.current.resetFields();
                                 this.onFormSubmit(values);
                             })
                             .catch(info => {
@@ -72,14 +68,20 @@ class PeriodSetter extends React.Component {
                     <Form
                         ref={this.formRef}
                         name="periodForm"
-                        initialValues={{ periodRange: [this.props.start, this.props.end], remember: true }}
+                        initialValues={{
+                            periodRange: [
+                                moment().startOf('day').set('hours', this.props.start),
+                                moment().startOf('day').set('hours', this.props.end)
+                            ],
+                            remember: true
+                        }}
                         onFinish={(values) => this.onFormSubmit(values)}
                     >
                         <Form.Item
                             name="periodRange"
                             rules={[{ required: true, message: 'The range of the period is required!' }]}
                         >
-                            <RangePicker format={"HH:mm"} />
+                            <RangePicker format={"HH"} />
                         </Form.Item>
                     </Form>
                 </Modal>
@@ -92,29 +94,25 @@ const mapStateToProps = (state, ownProps) => {
     switch (ownProps.periodType) {
         case PeriodType.WORK_PERIOD:
             return {
-                start: state.period.workStart,
-                end: state.period.workEnd
+                start: new Number(state.period.workStart),
+                end: new Number(state.period.workEnd)
             }
         case PeriodType.FREE_PERIOD:
             return {
                 start: state.period.freeStart,
                 end: state.period.freeEnd
             }
-        case PeriodType.SLEEP_PERIOD:
-            return {
-                start: state.period.sleepStart,
-                end: state.period.sleepEnd
-            }
         default:
-            break;
+            return {
+
+            }
     }
 }
 
 const mapDispatchToProps = dispatch => {
     return {
         setWorkPeriod: (payload) => dispatch(setWorkPeriod(payload)),
-        setFreePeriod: (payload) => dispatch(setFreePeriod(payload)),
-        setSleepPeriod: (payload) => dispatch(setSleepPeriod(payload))
+        setFreePeriod: (payload) => dispatch(setFreePeriod(payload))
     }
 }
 

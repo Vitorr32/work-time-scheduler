@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppointmentForm } from '../AppointmentForm/AppointmentForm.component';
+import AppointmentForm from '../AppointmentForm/AppointmentForm.component';
 import PeriodSetter from '../PeriodSetter/PeriodSetter.component';
 import * as PeriodType from '../../utils/PeriodType';
 
@@ -21,7 +21,6 @@ export class Header extends React.Component {
                 <div className="button-group">
                     <PeriodSetter periodType={PeriodType.WORK_PERIOD} />
                     <PeriodSetter periodType={PeriodType.FREE_PERIOD} />
-                    <PeriodSetter periodType={PeriodType.SLEEP_PERIOD} />
 
                     <AppointmentForm />
                 </div>

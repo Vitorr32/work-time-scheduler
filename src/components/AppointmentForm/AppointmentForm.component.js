@@ -1,9 +1,16 @@
 import { Input, Form, Modal, InputNumber, DatePicker, Button } from 'antd';
 import React from 'react';
+import { connect } from 'react-redux';
+import moment from 'moment';
 
 import './AppointmentForm.styles.scss';
 
-export class AppointmentForm extends React.Component {
+const layout = {
+    labelCol: { span: 8 },
+    wrapperCol: { span: 16 },
+};
+
+class AppointmentForm extends React.Component {
     formRef = React.createRef();
 
     constructor(props) {
@@ -16,6 +23,21 @@ export class AppointmentForm extends React.Component {
 
     onFormSubmit(values) {
         console.log(values);
+    }
+
+    verifyAppointmentDisponibility(values, yolo) {
+        console.log("SWAGGG", values);
+        console.log('yolo', yolo);
+
+    }
+
+    validateDueDate(_, dueDate, callback) {
+        if (moment().isSameOrAfter(dueDate)) {
+            callback('The due date needs to be after now!');
+            return;
+        }
+
+        callback();
     }
 
     render() {
@@ -40,10 +62,12 @@ export class AppointmentForm extends React.Component {
                 >
 
                     <Form
+                        {...layout}
                         ref={this.formRef}
                         name="eventForm"
                         initialValues={{ remember: true }}
                         onFinish={(values) => this.onFormSubmit(values)}
+                        onFieldsChange={this.verifyAppointmentDisponibility}
                     >
                         <Form.Item
                             label="Name"
@@ -65,33 +89,30 @@ export class AppointmentForm extends React.Component {
                             name="value"
                         >
                             <InputNumber
-                                defaultValue={0.00}
                                 formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                 parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                                min={0}
+                                precision={2}
                             />
                         </Form.Item>
 
                         <Form.Item
                             label="Estimated Hours"
                             name="hours"
+                            rules={[{ required: true, message: 'The ETA is required to allow the scheduler to distribute time' }]}
                         >
                             <InputNumber
-                                defaultValue={0}
-                                rules={[{ required: true, message: 'The event name is required' }]}
-                            />
+                                formatter={value => `${value} ${value ? value > 1 ? 'Hours' : 'Hour' : ''}`}
+                                parser={value => value.replace('Hours', '')}
+                                min={0} />
                         </Form.Item>
 
                         <Form.Item
                             label="Due Date"
                             name="dueDate"
+                            rules={[{ required: true, message: 'The dude date is required' }, { validator: this.validateDueDate }]}
                         >
-                            <DatePicker showTime rules={[
-                                {
-                                    validator: (rule, value, callback) => {
-                                        value.length < 3 ? callback("too short") : callback();
-                                    }
-                                }
-                            ]} />
+                            <DatePicker format={'DD/MM/YYYY HH:00'} showTime />
                         </Form.Item >
                     </Form>
 
@@ -100,3 +121,9 @@ export class AppointmentForm extends React.Component {
         )
     }
 }
+
+const mapStateToProps = (state) => ({
+    appointments: state.appointment.appointments
+})
+
+export default connect(mapStateToProps)(AppointmentForm);

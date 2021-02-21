@@ -19,7 +19,7 @@ import './Home.styles.scss';
 
 class HomeComponent extends React.Component {
 
-    TableTimeCellRenderer(input, type) {
+    TableTimeCellRenderer(input) {
         const { workStart, workEnd, freeStart, freeEnd } = this.props;
 
         const startDate = moment(input.startDate);
@@ -27,20 +27,22 @@ class HomeComponent extends React.Component {
 
         let className = "sleep-period";
 
-        if (startDate.isBetween(workStart, workEnd) && endDate.isBetween(workStart, workEnd)) {
+        if (this.isHoursBetween(workStart, workEnd, startDate, endDate)) {
             className = "work-period"
-        } else if (startDate.isBetween(freeStart, freeEnd) && endDate.isBetween(freeStart, freeEnd)) {
+        } else if (this.isHoursBetween(freeStart, freeEnd, startDate, endDate)) {
             className = "free-period"
         }
 
-        switch (type) {
-            case 'DAY':
-                return <DayView.TimeTableCell {...input} className={className}></DayView.TimeTableCell>
-            case 'WEEK':
-                return <WeekView.TimeTableCell {...input} className={className}></WeekView.TimeTableCell>
-            default:
-                return <DayView.TimeTableCell {...input} className={className}></DayView.TimeTableCell>
-        }
+        return <DayView.TimeTableCell {...input} className={className}></DayView.TimeTableCell>
+    }
+
+    isHoursBetween(periodStart, periodEnd, checkStart, checkEnd) {
+        const periodStartDate = checkStart.clone().startOf('day').set('hour', periodStart);
+        const periodEndDate = checkEnd.clone().startOf('day').set('hour', periodEnd);
+
+        return checkStart.isBetween(periodStartDate, periodEndDate, undefined, "[)") &&
+            checkEnd.isBetween(periodStartDate, periodEndDate, undefined, "(]")
+
     }
 
     render() {

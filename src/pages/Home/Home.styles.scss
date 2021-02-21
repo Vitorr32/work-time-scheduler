@@ -12,13 +12,25 @@
 
     .sleep-period {
         background-color: #a7a7a747;
+
+        &:hover {
+            background-color: rgba(0, 0, 0, 0.04);
+        }
     }
 
-    .work-period{
-        background-color: purple;
+    .work-period {
+        background-color: rgba(128, 0, 128, 0.25);
+
+        &:hover {
+            background-color: rgba(116, 57, 116, 0.25);
+        }
     }
 
-    .free-period{
-        background-color: lightgreen;
+    .free-period {
+        background-color: rgba(144, 238, 144, 0.25);
+
+        &:hover {
+            background-color: rgba(139, 187, 139, 0.25);
+        }
     }
 }
