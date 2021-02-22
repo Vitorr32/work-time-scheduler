@@ -33,4 +33,28 @@
             background-color: rgba(139, 187, 139, 0.25);
         }
     }
+
+    .app-appointment-content {
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+
+        .title {
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .value-wrapper {
+            font-weight: 14px;
+            font-weight: bold;
+        }
+
+        .hour-wrapper {
+            display: flex;
+        }
+
+        .description {
+            flex: 1;
+        }
+    }
 }

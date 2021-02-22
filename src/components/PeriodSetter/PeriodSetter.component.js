@@ -2,7 +2,6 @@ import { Button, Form, Modal, TimePicker } from 'antd';
 import React from 'react';
 import { connect } from 'react-redux';
 import { setFreePeriod, setWorkPeriod } from '../../redux/period/period.actions';
-import { KeyboardTimePicker } from '@material-ui/pickers';
 import * as PeriodType from '../../utils/PeriodType';
 import moment from 'moment';
 

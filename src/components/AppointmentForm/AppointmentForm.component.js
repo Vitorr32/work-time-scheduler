@@ -27,8 +27,6 @@ class AppointmentForm extends React.Component {
     onFormSubmit(values) {
         const finalAppointmentsList = [...this.props.appointments]
 
-        console.log("appointments periods", this.state.appointmentPeriods);
-
         this.state.appointmentPeriods.forEach(appointmentPeriod => {
             finalAppointmentsList.push({
                 startDate: appointmentPeriod.start,
@@ -43,7 +41,6 @@ class AppointmentForm extends React.Component {
     verifyAppointmentDisponibility([lastChange], [_, __, ___, hours, dueDate]) {
         if (lastChange.name.includes('hours') || lastChange.name.includes('dueDate')) {
             if (hours.value && dueDate.value) {
-                console.log(hours.value);
                 const vacatedWorkPeriods = this.getAllVacatedSpacesInPeriodUntilDueDate(
                     this.props.workStart,
                     this.props.workEnd,
@@ -51,6 +48,8 @@ class AppointmentForm extends React.Component {
                     this.props.appointments,
                     hours.value
                 )
+
+                console.log('vacatedWorkPeriods', vacatedWorkPeriods);
 
                 const currentDistributedHours = this.getTotalHoursOfPeriods(vacatedWorkPeriods)
 
@@ -72,11 +71,27 @@ class AppointmentForm extends React.Component {
                     currentlyRemainingHours
                 )
 
-                if (vacatedFreePeriods.length != 0 && currentDistributedHours + currentlyRemainingHours >= hours.value) {
-                    this.setState({ appointmentPreview: 'The appointment will invade some of the free time to be completed' })
+                console.log('vacatedFreePeriods', vacatedFreePeriods)
+
+                const distributedHoursIncludingFreePeriod = this.getTotalHoursOfPeriods(vacatedFreePeriods);
+
+                if (vacatedFreePeriods.length != 0 && currentDistributedHours + distributedHoursIncludingFreePeriod >= hours.value) {
+                    this.setState({
+                        appointmentPreview: 'The appointment will invade some of the free time to be completed',
+                        appointmentPeriods: this.mergeContinousAppointmentsInDifferentPeriods([...vacatedWorkPeriods, ...vacatedFreePeriods])
+                    })
                     return;
                 }
 
+                //Need to get sleep hours to conclude the appointment
+
+
+
+            } else {
+                this.setState({
+                    appointmentPreview: '',
+                    appointmentPeriods: []
+                })
             }
         }
     }
@@ -95,20 +110,21 @@ class AppointmentForm extends React.Component {
             /*  Check if the periods already obtained already are enough for the appointment, so theres no 
                 to continue the while loop*/
             if (hoursNeeded != 0) {
-                if (currentContinuousPeriod.start && this.getTotalHoursOfPeriods([...allContinuousPeriods, currentContinuousPeriod]) >= hoursNeeded) {
-                    currentContinuousPeriod.end = currentTimestamp.clone();
-                    currentContinuousPeriod.hours++;
+                if (currentContinuousPeriod.start) {
+                    if (this.getTotalHoursOfPeriods([...allContinuousPeriods, { hours: 1 + currentContinuousPeriod.hours }]) >= hoursNeeded) {
+                        currentContinuousPeriod.end = currentTimestamp.clone();
+                        currentContinuousPeriod.hours++;
 
-                    //Add the finished continuous period to the array.
-                    allContinuousPeriods.push(Object.assign({}, currentContinuousPeriod));
+                        //Add the finished continuous period to the array.
+                        allContinuousPeriods.push(Object.assign({}, currentContinuousPeriod));
 
-                    currentContinuousPeriod = {
-                        start: null,
-                        end: null,
-                        hours: 0
+                        currentContinuousPeriod = {
+                            start: null,
+                            end: null,
+                            hours: 0
+                        }
+                        break;
                     }
-
-                    break;
                 } else if (this.getTotalHoursOfPeriods(allContinuousPeriods) >= hoursNeeded) {
                     break;
                 }
@@ -143,7 +159,7 @@ class AppointmentForm extends React.Component {
                     }
                 }
 
-                if (appointment.endDate.get('hour') + 1 >= periodEnd) {
+                if (appointment.endDate.get('hour') >= periodEnd) {
                     currentTimestamp = currentTimestamp.add(1, 'day').set('hour', periodStart);
                 } else {
                     currentTimestamp = currentTimestamp.set('hour', appointment.endDate.get('hour'));
@@ -151,11 +167,20 @@ class AppointmentForm extends React.Component {
                 continue;
             }
 
+            //If the current timestamp is beyond or just reached the dueDate
+            if (currentTimestamp.isSame(dueDate, 'day') && currentTimestamp.get('hour') >= dueDate.get('hour')) {
+                if (currentContinuousPeriod.start) {
+                    currentContinuousPeriod.end = currentTimestamp.clone();
+                    currentContinuousPeriod.hours++;
+
+                    allContinuousPeriods.push(Object.assign({}, currentContinuousPeriod));
+                }
+
+                break;
+            }
+
             //If the current hour is the final hour of the period, end the continuous period
-            if (currentTimestamp.get('hour') >= periodEnd ||
-                (currentTimestamp.get('day') === dueDate.get('day') && currentTimestamp.get('hour') === dueDate.get('hour'))) {
-                console.log('currentTimestamp', Object.assign({}, currentTimestamp));
-                console.log('currentContinuousPeriod', Object.assign({}, currentContinuousPeriod))
+            if (currentTimestamp.get('hour') >= periodEnd) {
                 if (currentContinuousPeriod.start) {
                     currentContinuousPeriod.end = currentTimestamp.clone();
                     currentContinuousPeriod.hours++;
@@ -235,7 +260,6 @@ class AppointmentForm extends React.Component {
                     onOk={() => {
                         this.formRef.current.validateFields()
                             .then(values => {
-                                this.formRef.current.resetFields();
                                 this.onFormSubmit(values);
                                 this.setState({ isModalVisible: false });
                             })

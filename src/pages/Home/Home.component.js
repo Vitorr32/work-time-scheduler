@@ -10,6 +10,7 @@ import {
     Toolbar,
     ViewSwitcher,
     MonthView,
+    AppointmentTooltip
 } from '@devexpress/dx-react-scheduler-material-ui';
 import { Header } from '../../components/Header/Header.component';
 import { connect } from 'react-redux';
@@ -18,6 +19,9 @@ import moment from 'moment';
 import './Home.styles.scss';
 
 class HomeComponent extends React.Component {
+    constructor(props) {
+        super(props);
+    }
 
     TableTimeCellRenderer(input) {
         const { workStart, workEnd, freeStart, freeEnd } = this.props;
@@ -45,6 +49,53 @@ class HomeComponent extends React.Component {
 
     }
 
+    getCustomAppointmentContent(props) {
+        const { data, formatDate } = props;
+        return (
+            <Appointments.AppointmentContent {...props} style={{ height: '100%' }}>
+                <div className="app-appointment-content">
+                    <div className="title">
+                        {data.title}
+                    </div>
+                    <div className="value-wrapper">$ 24.00</div>
+                    <div className="hour-wrapper">
+                        <span>{formatDate(data.startDate, { hour: 'numeric', minute: 'numeric' })}</span>
+                        <span style={{ padding: "0px 3px" }}> - </span>
+                        <span>{formatDate(data.endDate, { hour: 'numeric', minute: 'numeric' })}</span>
+                    </div>
+
+                    <div className="description">
+                        asdasidhisadbasid asjd asidaid adia diasd asidbasudbasudbad asida dia diadsyb
+                    </div>
+                </div>
+            </Appointments.AppointmentContent>
+        )
+    }
+
+    getTooltipContent(props) {
+        console.log(props)
+        return (
+            <AppointmentTooltip.Content {...props}>
+
+            </AppointmentTooltip.Content>
+        )
+    }
+
+    getStartDayHour() {
+        if (this.props.workStart && this.props.freeStart) {
+            return Math.min(this.props.workStart, this.props.freeStart);
+        }
+        return 0;
+    }
+
+    getEndDayHour() {
+        if (this.props.workEnd && this.props.freeEnd) {
+            return Math.max(this.props.workEnd, this.props.freeEnd);
+        }
+
+        return 24;
+    }
+
     render() {
         return (
             <div id="home-wrapper">
@@ -57,15 +108,29 @@ class HomeComponent extends React.Component {
                             defaultCurrentViewName="Week"
                         />
 
-                        <DayView timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
+                        <DayView
+                            // startDayHour={this.getStartDayHour()}
+                            // endDayHour={this.getEndDayHour()}
+                            timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
                         </DayView>
-                        <WeekView timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
+                        <WeekView
+                            // startDayHour={this.getStartDayHour()}
+                            // endDayHour={this.getEndDayHour()}
+                            timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
                         </WeekView>
                         <MonthView />
 
+                        <Appointments
+                            appointmentContentComponent={this.getCustomAppointmentContent}
+                        />
+
+                        <AppointmentTooltip
+                            showCloseButton
+                            showOpenButton
+                        />
+
                         <Toolbar />
                         <ViewSwitcher />
-                        <Appointments />
                     </Scheduler>
                 </Paper>
             </div>
