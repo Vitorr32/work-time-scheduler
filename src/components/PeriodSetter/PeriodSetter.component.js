@@ -81,7 +81,7 @@ class PeriodSetter extends React.Component {
                             name="periodRange"
                             rules={[{ required: true, message: 'The range of the period is required!' }]}
                         >
-                            <RangePicker format={"HH"} />
+                            <RangePicker format={"HH:00"} />
                         </Form.Item>
                     </Form>
                 </Modal>
