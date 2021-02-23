@@ -1,11 +1,14 @@
 import { Input, Form, Modal, InputNumber, DatePicker, Button } from 'antd';
 import React from 'react';
 import { connect } from 'react-redux';
-import { addAppointments, addJob } from '../../redux/appointment/appointment.actions';
+import { addAppointment, addJob } from '../../redux/appointment/appointment.actions';
 import moment from 'moment';
 
 import './AppointmentForm.styles.scss';
-import { APPOINTMENT_STATE_NOT_STARTED } from '../../utils/constants';
+import { APPOINTMENT_STATE_NOT_STARTED, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
+import { CoffeeOutlined, FieldTimeOutlined } from '@ant-design/icons';
+import { getAllVacatedSpacesInPeriodUntilDueDate, getTotalHoursOfPeriods, verifyAppointmentDisponibility } from '../../utils/periods';
+import { Tooltip } from '@material-ui/core';
 
 const layout = {
     labelCol: { span: 8 },
@@ -20,8 +23,10 @@ class AppointmentForm extends React.Component {
 
         this.state = {
             isModalVisible: false,
+            isFutherActionModalVisible: false,
             appointmentPreview: null,
-            appointmentPeriods: []
+            appointmentPeriods: [],
+            appointmentSuccessful: false
         }
     }
 
@@ -35,7 +40,8 @@ class AppointmentForm extends React.Component {
             price: values.price,
             description: values.description,
             state: APPOINTMENT_STATE_NOT_STARTED,
-            jobId: newJobId
+            jobId: newJobId,
+            hours: period.hours
         }))
 
         const newJob = {
@@ -43,7 +49,9 @@ class AppointmentForm extends React.Component {
             name: values.name,
             appointments: appointmentsToCreate,
             price: values.price,
-            description: values.description
+            description: values.description,
+            dueDate: values.dueDate,
+            totalHours: values.hours
         }
 
 
@@ -52,54 +60,39 @@ class AppointmentForm extends React.Component {
     }
 
     verifyAppointmentDisponibility([lastChange], [_, __, ___, hours, dueDate]) {
+        const { appointments, workStart, workEnd, freeStart, freeEnd } = this.props;
         if (lastChange.name.includes('hours') || lastChange.name.includes('dueDate')) {
             if (hours.value && dueDate.value) {
-                const vacatedWorkPeriods = this.getAllVacatedSpacesInPeriodUntilDueDate(
-                    this.props.workStart,
-                    this.props.workEnd,
-                    dueDate.value,
-                    this.props.appointments,
-                    hours.value
-                )
+                const verifiedDisponibility = verifyAppointmentDisponibility(hours.value, dueDate.value, appointments, [workStart, workEnd], [freeStart, freeEnd]);
 
-                console.log('vacatedWorkPeriods', vacatedWorkPeriods);
-
-                const currentDistributedHours = this.getTotalHoursOfPeriods(vacatedWorkPeriods)
-
-                if (vacatedWorkPeriods.length != 0 && currentDistributedHours >= hours.value) {
-                    this.setState({
-                        appointmentPreview: 'The appointment will be sucessfully distributed in the work period',
-                        appointmentPeriods: vacatedWorkPeriods
-                    })
+                if (!verifiedDisponibility) {
+                    console.error("Error on saving the periods")
                     return;
                 }
 
-                const currentlyRemainingHours = hours.value - currentDistributedHours;
-
-                const vacatedFreePeriods = this.getAllVacatedSpacesInPeriodUntilDueDate(
-                    this.props.freeStart,
-                    this.props.freeEnd,
-                    dueDate.value,
-                    this.props.appointments,
-                    currentlyRemainingHours
-                )
-
-                console.log('vacatedFreePeriods', vacatedFreePeriods)
-
-                const distributedHoursIncludingFreePeriod = this.getTotalHoursOfPeriods(vacatedFreePeriods);
-
-                if (vacatedFreePeriods.length != 0 && currentDistributedHours + distributedHoursIncludingFreePeriod >= hours.value) {
-                    this.setState({
-                        appointmentPreview: 'The appointment will invade some of the free time to be completed',
-                        appointmentPeriods: this.mergeContinousAppointmentsInDifferentPeriods([...vacatedWorkPeriods, ...vacatedFreePeriods])
-                    })
-                    return;
+                switch (verifiedDisponibility.state) {
+                    case SCHEDULE_WORK_ONLY:
+                        this.setState({
+                            appointmentPreview: 'The job can be sucessfully distributed in the work period',
+                            appointmentPeriods: verifiedDisponibility.periods,
+                            appointmentSuccessful: true
+                        })
+                        break;
+                    case SCHEDULE_FREE_TIME:
+                        this.setState({
+                            appointmentPreview: 'The job will invade some of your free time period',
+                            appointmentPeriods: verifiedDisponibility.periods,
+                            appointmentSuccessful: true
+                        })
+                        break;
+                    case SCHEDULE_FULL:
+                        this.setState({
+                            appointmentPreview: 'The job could not be distributed into your work/free time, further action will be required on submit',
+                            appointmentPeriods: verifiedDisponibility.periods,
+                            appointmentSuccessful: false
+                        })
+                        break;
                 }
-
-                //Need to get sleep hours to conclude the appointment
-
-
-
             } else {
                 this.setState({
                     appointmentPreview: '',
@@ -109,148 +102,12 @@ class AppointmentForm extends React.Component {
         }
     }
 
-    getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, dueDate, appointments, hoursNeeded = 0) {
-        const allContinuousPeriods = [];
-        //Start with the period
-        let currentTimestamp = moment().add(1, 'day').startOf('day').set('hour', periodStart);
-        let currentContinuousPeriod = {
-            start: null,
-            end: null,
-            hours: 0
-        }
-
-        while (currentTimestamp.isBefore(dueDate)) {
-            /*  Check if the periods already obtained already are enough for the appointment, so theres no 
-                to continue the while loop*/
-            if (hoursNeeded != 0) {
-                if (currentContinuousPeriod.start) {
-                    if (this.getTotalHoursOfPeriods([...allContinuousPeriods, { hours: 1 + currentContinuousPeriod.hours }]) >= hoursNeeded) {
-                        currentContinuousPeriod.end = currentTimestamp.clone();
-                        currentContinuousPeriod.hours++;
-
-                        //Add the finished continuous period to the array.
-                        allContinuousPeriods.push(Object.assign({}, currentContinuousPeriod));
-
-                        currentContinuousPeriod = {
-                            start: null,
-                            end: null,
-                            hours: 0
-                        }
-                        break;
-                    }
-                } else if (this.getTotalHoursOfPeriods(allContinuousPeriods) >= hoursNeeded) {
-                    break;
-                }
-            }
-
-            //Try to find an appointment that contains the current iterated hour.
-            const appointment = appointments.find(appointment => {
-                //Check if the current timestamp is between this appointment period
-                if (currentTimestamp.get('day') === appointment.startDate.get('day') &&
-                    currentTimestamp.get('hour') >= appointment.startDate.get('hour') &&
-                    currentTimestamp.get('hour') < appointment.endDate.get('hour')) {
-                    return true;
-                }
-
-                return false;
-            })
-
-            //If there's already an appointment in the current timestamp iterated, skip to the end of the appointment
-            if (appointment) {
-                //If there's an current period that has been stopped thanks to this appointment, save in the array.
-                if (currentContinuousPeriod.start) {
-                    currentContinuousPeriod.end = currentTimestamp.clone();
-                    currentContinuousPeriod.hours++;
-
-                    //Add the finished continuous period to the array.
-                    allContinuousPeriods.push(Object.assign({}, currentContinuousPeriod));
-
-                    currentContinuousPeriod = {
-                        start: null,
-                        end: null,
-                        hours: 0
-                    }
-                }
-
-                if (appointment.endDate.get('hour') >= periodEnd) {
-                    currentTimestamp = currentTimestamp.add(1, 'day').set('hour', periodStart);
-                } else {
-                    currentTimestamp = currentTimestamp.set('hour', appointment.endDate.get('hour'));
-                }
-                continue;
-            }
-
-            //If the current timestamp is beyond or just reached the dueDate
-            if (currentTimestamp.isSame(dueDate, 'day') && currentTimestamp.get('hour') >= dueDate.get('hour')) {
-                if (currentContinuousPeriod.start) {
-                    currentContinuousPeriod.end = currentTimestamp.clone();
-                    currentContinuousPeriod.hours++;
-
-                    allContinuousPeriods.push(Object.assign({}, currentContinuousPeriod));
-                }
-
-                break;
-            }
-
-            //If the current hour is the final hour of the period, end the continuous period
-            if (currentTimestamp.get('hour') >= periodEnd) {
-                if (currentContinuousPeriod.start) {
-                    currentContinuousPeriod.end = currentTimestamp.clone();
-                    currentContinuousPeriod.hours++;
-
-                    //Add the finished continuous period to the array.
-                    allContinuousPeriods.push(Object.assign({}, currentContinuousPeriod));
-
-                    currentContinuousPeriod = {
-                        start: null,
-                        end: null,
-                        hours: 0
-                    }
-                }
-
-                currentTimestamp = currentTimestamp.add(1, 'day').set('hour', periodStart);
-                continue;
-            }
-
-
-            //If there's no appointment, this is a free hour to add to the current continuous period
-            if (currentContinuousPeriod.start) {
-                currentContinuousPeriod.end = currentTimestamp.clone();
-                currentContinuousPeriod.hours++;
-            } else {
-                currentContinuousPeriod.start = currentTimestamp.clone();
-            }
-
-            currentTimestamp = currentTimestamp.add(1, 'hour');
-        }
-
-        return allContinuousPeriods;
+    onDelayAppointmentSubmit() {
+        console.log(this.formRef.current.getFieldsValue());
     }
 
-    getTotalHoursOfPeriods(periods) {
-        return periods.reduce((sum, period) => ({ hours: sum.hours + period.hours }), { hours: 0 }).hours;
-    }
+    onOverwriteSleepSubmit() {
 
-    mergeContinousAppointmentsInDifferentPeriods(appointments) {
-        const mergedAppointment = [];
-        const indexesToIgnore = [];
-        appointments.forEach((appointment, index) => {
-            if (indexesToIgnore.includes(index)) {
-                return;
-            }
-
-            const appointmentToMergeIndex = appointments.findIndex(appointmentToCompare => appointment.end === appointmentToCompare.start);
-            if (appointmentToMergeIndex != -1) {
-                indexesToIgnore.push(appointmentToMergeIndex);
-
-                appointment.end = appointments[appointmentToMergeIndex].end;
-                appointment.hours = appointment.end.get('hours') - appointment.start.get('hours');
-            }
-
-            mergedAppointment.push(appointment);
-        })
-
-        return mergedAppointment;
     }
 
     validateDueDate(_, dueDate) {
@@ -273,8 +130,12 @@ class AppointmentForm extends React.Component {
                     onOk={() => {
                         this.formRef.current.validateFields()
                             .then(values => {
-                                this.onFormSubmit(values);
-                                this.setState({ isModalVisible: false });
+                                if (this.state.appointmentSuccessful) {
+                                    this.onFormSubmit(values);
+                                    this.setState({ isModalVisible: false });
+                                } else {
+                                    this.setState({ isFutherActionModalVisible: true})
+                                }
                             })
                             .catch(info => {
                                 console.log('Validate Failed:', info);
@@ -339,6 +200,22 @@ class AppointmentForm extends React.Component {
                     </Form>
 
                 </Modal>
+
+                <Modal
+                    visible={this.state.isFutherActionModalVisible}
+                    footer={[
+                        <Tooltip key="delay" title="Delay">
+                            <Button type="primary" onClick={this.onDelayAppointmentSubmit.bind(this)} icon={<FieldTimeOutlined />}></Button>
+                        </Tooltip>,
+                        <Tooltip key="overwrite_sleep" title="Overwrite Sleep">
+                            <Button type="primary" onClick={this.onOverwriteSleepSubmit.bind(this)} icon={<CoffeeOutlined />}></Button>
+                        </Tooltip>,
+                        <Button key="back" onClick={() => this.setState({ isFutherActionModalVisible: false })}>
+                            Cancel
+                        </Button>
+                    ]}>
+                    <p>The appointment submitted can't be concluded during your work and free period, what should the scheduler do to allow for this job to be scheduled?</p>
+                </Modal>
             </React.Fragment>
         )
     }
@@ -355,7 +232,7 @@ const mapStateToProps = (state) => ({
 
 const mapDispatchToProps = dispatch => {
     return {
-        addAppointments: (payload) => dispatch(addAppointments(payload)),
+        addAppointments: (payload) => dispatch(addAppointment(payload)),
         addJob: (payload) => dispatch(addJob(payload))
     }
 }

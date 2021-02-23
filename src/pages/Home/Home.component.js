@@ -17,6 +17,11 @@ import { connect } from 'react-redux';
 import moment from 'moment';
 
 import './Home.styles.scss';
+import { APPOINTMENT_STATE_NOT_STARTED } from '../../utils/constants';
+import { FieldTimeOutlined, DoubleRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { updateAppointment } from '../../redux/appointment/appointment.actions';
+import { getAllVacatedSpacesInPeriodUntilDueDate } from '../../utils/periods';
+import { Button } from 'antd';
 
 class HomeComponent extends React.Component {
     constructor(props) {
@@ -57,16 +62,23 @@ class HomeComponent extends React.Component {
                     <div className="title">
                         {data.title}
                     </div>
-                    <div className="value-wrapper">$ 24.00</div>
+                    <div className="value-wrapper">$ {data.price}</div>
                     <div className="hour-wrapper">
                         <span>{formatDate(data.startDate, { hour: 'numeric', minute: 'numeric' })}</span>
                         <span style={{ padding: "0px 3px" }}> - </span>
                         <span>{formatDate(data.endDate, { hour: 'numeric', minute: 'numeric' })}</span>
                     </div>
 
-                    <div className="description">
-                        asdasidhisadbasid asjd asidaid adia diasd asidbasudbasudbad asida dia diadsyb
-                    </div>
+                    {
+                        data.description
+                            ?
+                            <div className="description">
+                                {data.description}
+                            </div>
+                            :
+                            null
+                    }
+
                 </div>
             </Appointments.AppointmentContent>
         )
@@ -74,27 +86,67 @@ class HomeComponent extends React.Component {
 
     getTooltipContent(props) {
         console.log("appointmentTooltipProps", props);
+
         return (
             <AppointmentTooltip.Content {...props}>
-                <div>
-                    Yolo
+                <div className="tooltip-wrapper">
+                    <Button
+                        onClick={() => this.onCompleteTheAppointment(props.data)}
+                        icon={<CheckCircleOutlined />}
+                        size={'large'}>
+                        Complete
+                        </Button>
+                    <Button
+                        onClick={() => this.onCompleteTheAppointment(props.data)}
+                        icon={<FieldTimeOutlined />}
+                        size={'large'}>
+                        Delay
+                        </Button>
+                    <Button
+                        //onClick={() => this.onCompleteTheAppointment(props.data)}
+                        icon={<DoubleRightOutlined />}
+                        size={'large'}>
+                        Finish
+                        </Button>
                 </div>
             </AppointmentTooltip.Content>
         )
     }
 
-    getAppointmentComponet(props) {
-        const { children, style } = props;
+    onCompleteTheAppointment(appointment) {
+        const indexOnList = this.props.appointments.findIndex(toCompare => toCompare === appointment);
 
-        console.log("appointmentProps", props);
+        if (indexOnList === -1) {
+            console.error("Unknown appointment was completed!");
+            return;
+        }
+
+        this.props.updateAppointment({ appointment, index: indexOnList });
+    }
+
+    onDelayTheAppointment(appointment) {
+        const job = this.findJobOfAppointment(appointment);
+
+        getAllVacatedSpacesInPeriodUntilDueDate()
+    }
+
+    getAppointmentComponet(props) {
+        const { children, style, data } = props;
+
+        let className;
+
+        if (this.isAppointmentNow(data)) {
+            className = "appointment-active";
+        } else if (this.isAppointmentLate(data)) {
+            className = "appointment-late"
+        }
 
         return (
             <Appointments.Appointment
                 {...props}
+                className={className}
                 style={{
-                    ...style,
-                    backgroundColor: '#FFC107',
-                    borderRadius: '8px',
+                    ...style
                 }}
             >
                 {children}
@@ -115,6 +167,22 @@ class HomeComponent extends React.Component {
         }
 
         return 24;
+    }
+
+    isAppointmentOnTime(appointment) {
+        return moment().isBefore(appointment.startDate);
+    }
+
+    isAppointmentNow(appointment) {
+        return moment().isSameOrAfter(appointment.startDate) && moment().isSameOrBefore(appointment.endDate)
+    }
+
+    isAppointmentLate(appointment) {
+        return moment().isAfter(appointment.endDate) && appointment.state === APPOINTMENT_STATE_NOT_STARTED
+    }
+
+    findJobOfAppointment(appointment) {
+        return this.props.jobs.find(job => job.id === appointment.jobId);
     }
 
     render() {
@@ -142,7 +210,7 @@ class HomeComponent extends React.Component {
                         <MonthView />
 
                         <Appointments
-                            appointmentComponent={this.getAppointmentComponet}
+                            appointmentComponent={this.getAppointmentComponet.bind(this)}
                             appointmentContentComponent={this.getCustomAppointmentContent}
                         />
 
@@ -170,4 +238,11 @@ const mapStateToProps = (state) => ({
     jobs: state.appointment.jobs
 })
 
-export default connect(mapStateToProps)(HomeComponent);
+const mapDispatchToProps = dispatch => {
+    return {
+        updateAppointment: (payload) => dispatch(updateAppointment(payload))
+    }
+}
+
+
+export default connect(mapStateToProps, mapDispatchToProps)(HomeComponent);

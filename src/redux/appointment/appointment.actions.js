@@ -1,9 +1,14 @@
 import * as types from './appointment.types';
 
-export const addAppointments = appointments => ({
+export const addAppointment = appointment => ({
     type: types.ADD_APPOINTMENTS,
-    payload: appointments
+    payload: appointment
 });
+
+export const updateAppointment = appointmentAndIndex => ({
+    type: types.UPDATED_APPOINTMENT,
+    payload: appointmentAndIndex
+})
 
 export const addJob = job => ({
     type: types.ADD_JOB,

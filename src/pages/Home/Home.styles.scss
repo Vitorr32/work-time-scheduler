@@ -55,6 +55,21 @@
 
         .description {
             flex: 1;
+            white-space: normal;
+            margin-top: 10px;
         }
+    }
+
+    .appointment-active {
+        background-color: green;
+    }
+
+    .appointment-late {
+        background-color: orangered;
+    }
+
+    .tooltip-wrapper {
+        display: flex;
+        justify-content: space-between;
     }
 }
