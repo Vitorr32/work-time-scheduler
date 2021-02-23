@@ -73,11 +73,32 @@ class HomeComponent extends React.Component {
     }
 
     getTooltipContent(props) {
-        console.log(props)
+        console.log("appointmentTooltipProps", props);
         return (
             <AppointmentTooltip.Content {...props}>
-
+                <div>
+                    Yolo
+                </div>
             </AppointmentTooltip.Content>
+        )
+    }
+
+    getAppointmentComponet(props) {
+        const { children, style } = props;
+
+        console.log("appointmentProps", props);
+
+        return (
+            <Appointments.Appointment
+                {...props}
+                style={{
+                    ...style,
+                    backgroundColor: '#FFC107',
+                    borderRadius: '8px',
+                }}
+            >
+                {children}
+            </Appointments.Appointment>
         )
     }
 
@@ -121,12 +142,14 @@ class HomeComponent extends React.Component {
                         <MonthView />
 
                         <Appointments
+                            appointmentComponent={this.getAppointmentComponet}
                             appointmentContentComponent={this.getCustomAppointmentContent}
                         />
 
                         <AppointmentTooltip
                             showCloseButton
                             showOpenButton
+                            contentComponent={this.getTooltipContent}
                         />
 
                         <Toolbar />
@@ -143,7 +166,8 @@ const mapStateToProps = (state) => ({
     workEnd: state.period.workEnd,
     freeStart: state.period.freeStart,
     freeEnd: state.period.freeEnd,
-    appointments: state.appointment.appointments
+    appointments: state.appointment.appointments,
+    jobs: state.appointment.jobs
 })
 
 export default connect(mapStateToProps)(HomeComponent);

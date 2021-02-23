@@ -1,10 +1,11 @@
 import { Input, Form, Modal, InputNumber, DatePicker, Button } from 'antd';
 import React from 'react';
 import { connect } from 'react-redux';
-import { updateAppointments } from '../../redux/appointment/appointment.actions';
+import { addAppointments, addJob } from '../../redux/appointment/appointment.actions';
 import moment from 'moment';
 
 import './AppointmentForm.styles.scss';
+import { APPOINTMENT_STATE_NOT_STARTED } from '../../utils/constants';
 
 const layout = {
     labelCol: { span: 8 },
@@ -25,17 +26,29 @@ class AppointmentForm extends React.Component {
     }
 
     onFormSubmit(values) {
-        const finalAppointmentsList = [...this.props.appointments]
+        const newJobId = this.props.jobs.length;
 
-        this.state.appointmentPeriods.forEach(appointmentPeriod => {
-            finalAppointmentsList.push({
-                startDate: appointmentPeriod.start,
-                endDate: appointmentPeriod.end,
-                title: values.name
-            })
-        })
+        const appointmentsToCreate = this.state.appointmentPeriods.map(period => ({
+            startDate: period.start,
+            endDate: period.end,
+            title: values.name,
+            price: values.price,
+            description: values.description,
+            state: APPOINTMENT_STATE_NOT_STARTED,
+            jobId: newJobId
+        }))
 
-        this.props.updateAppointments(finalAppointmentsList);
+        const newJob = {
+            id: newJobId,
+            name: values.name,
+            appointments: appointmentsToCreate,
+            price: values.price,
+            description: values.description
+        }
+
+
+        this.props.addJob(newJob);
+        this.props.addAppointments(appointmentsToCreate);
     }
 
     verifyAppointmentDisponibility([lastChange], [_, __, ___, hours, dueDate]) {
@@ -293,12 +306,12 @@ class AppointmentForm extends React.Component {
                         </Form.Item>
 
                         <Form.Item
-                            label="Value"
-                            name="value"
+                            label="Price"
+                            name="price"
                         >
                             <InputNumber
-                                formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                                formatter={price => `$ ${price}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                parser={price => price.replace(/\$\s?|(,*)/g, '')}
                                 min={0}
                                 precision={2}
                             />
@@ -336,12 +349,14 @@ const mapStateToProps = (state) => ({
     workEnd: state.period.workEnd,
     freeStart: state.period.freeStart,
     freeEnd: state.period.freeEnd,
-    appointments: state.appointment.appointments
+    appointments: state.appointment.appointments,
+    jobs: state.appointment.jobs
 })
 
 const mapDispatchToProps = dispatch => {
     return {
-        updateAppointments: (payload) => dispatch(updateAppointments(payload))
+        addAppointments: (payload) => dispatch(addAppointments(payload)),
+        addJob: (payload) => dispatch(addJob(payload))
     }
 }
 
