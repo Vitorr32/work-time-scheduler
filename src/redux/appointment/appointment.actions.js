@@ -14,3 +14,8 @@ export const addJob = job => ({
     type: types.ADD_JOB,
     payload: job
 })
+
+export const updateJob = jobAndIndex => ({
+    type: types.UPDATE_JOB,
+    payload: jobAndIndex
+})

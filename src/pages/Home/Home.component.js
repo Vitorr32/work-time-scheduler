@@ -17,10 +17,10 @@ import { connect } from 'react-redux';
 import moment from 'moment';
 
 import './Home.styles.scss';
-import { APPOINTMENT_STATE_NOT_STARTED } from '../../utils/constants';
+import { APPOINTMENT_STATE_COMPLETED, APPOINTMENT_STATE_NOT_STARTED } from '../../utils/constants';
 import { FieldTimeOutlined, DoubleRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { updateAppointment } from '../../redux/appointment/appointment.actions';
-import { getAllVacatedSpacesInPeriodUntilDueDate } from '../../utils/periods';
+import { updateAppointment, updatedJob, updateJob } from '../../redux/appointment/appointment.actions';
+import { getAllVacatedSpacesInPeriodUntilDueDate, verifyAppointmentDisponibility } from '../../utils/periods';
 import { Button } from 'antd';
 
 class HomeComponent extends React.Component {
@@ -85,19 +85,17 @@ class HomeComponent extends React.Component {
     }
 
     getTooltipContent(props) {
-        console.log("appointmentTooltipProps", props);
-
         return (
             <AppointmentTooltip.Content {...props}>
                 <div className="tooltip-wrapper">
                     <Button
-                        onClick={() => this.onCompleteTheAppointment(props.data)}
+                        onClick={() => this.onCompleteTheAppointment(props.appointmentData)}
                         icon={<CheckCircleOutlined />}
                         size={'large'}>
                         Complete
                         </Button>
                     <Button
-                        onClick={() => this.onCompleteTheAppointment(props.data)}
+                        onClick={() => this.onDelayTheAppointment(props.appointmentData)}
                         icon={<FieldTimeOutlined />}
                         size={'large'}>
                         Delay
@@ -121,13 +119,35 @@ class HomeComponent extends React.Component {
             return;
         }
 
-        this.props.updateAppointment({ appointment, index: indexOnList });
+        const jobIndex = this.findJobOfAppointment(this.props.appointments[indexOnList], true);
+
+        const updatedAppointment = Object.assign({}, this.props.appointments[indexOnList]);
+        updatedAppointment.state = APPOINTMENT_STATE_COMPLETED;
+
+        this.props.updateAppointment({ appointment: updatedAppointment, index: indexOnList });
+        this.props.updateJob({ job: this.onUpdateAppointmentOnJob(this.props.jobs[jobIndex], updatedAppointment), index: jobIndex });
+    }
+
+    onUpdateAppointmentOnJob(job, updatedAppointment) {
+        const appointmentIndex = job.appointments.findIndex(appointment => appointment.id === updatedAppointment.id);
+        job.appointments[appointmentIndex] = updatedAppointment;
+
+        return job;
     }
 
     onDelayTheAppointment(appointment) {
-        const job = this.findJobOfAppointment(appointment);
+        const { workStart, workEnd, freeStart, freeEnd, appointments, jobs } = this.props;
 
-        getAllVacatedSpacesInPeriodUntilDueDate()
+        const jobIndex = this.findJobOfAppointment(appointment, true);
+
+        const periodOfDelay = verifyAppointmentDisponibility(
+            appointment.hours,
+            moment().startOf('day').set('year', 9999),
+            appointments,
+            [workStart, workEnd],
+            [freeStart, freeEnd],
+            jobs[jobIndex].dueDate
+        );
     }
 
     getAppointmentComponet(props) {
@@ -135,7 +155,10 @@ class HomeComponent extends React.Component {
 
         let className;
 
-        if (this.isAppointmentNow(data)) {
+        if (this.isAppointmentDone(data)) {
+            className = "appointment-done"
+        }
+        else if (this.isAppointmentNow(data)) {
             className = "appointment-active";
         } else if (this.isAppointmentLate(data)) {
             className = "appointment-late"
@@ -169,8 +192,8 @@ class HomeComponent extends React.Component {
         return 24;
     }
 
-    isAppointmentOnTime(appointment) {
-        return moment().isBefore(appointment.startDate);
+    isAppointmentDone(appointment) {
+        return appointment.state === APPOINTMENT_STATE_COMPLETED
     }
 
     isAppointmentNow(appointment) {
@@ -181,8 +204,12 @@ class HomeComponent extends React.Component {
         return moment().isAfter(appointment.endDate) && appointment.state === APPOINTMENT_STATE_NOT_STARTED
     }
 
-    findJobOfAppointment(appointment) {
-        return this.props.jobs.find(job => job.id === appointment.jobId);
+    findJobOfAppointment(appointment, index = false) {
+        return index
+            ?
+            this.props.jobs.findIndex(job => job.id === appointment.jobId)
+            :
+            this.props.jobs.find(job => job.id === appointment.jobId);
     }
 
     render() {
@@ -198,13 +225,9 @@ class HomeComponent extends React.Component {
                         />
 
                         <DayView
-                            // startDayHour={this.getStartDayHour()}
-                            // endDayHour={this.getEndDayHour()}
                             timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
                         </DayView>
                         <WeekView
-                            // startDayHour={this.getStartDayHour()}
-                            // endDayHour={this.getEndDayHour()}
                             timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
                         </WeekView>
                         <MonthView />
@@ -216,8 +239,7 @@ class HomeComponent extends React.Component {
 
                         <AppointmentTooltip
                             showCloseButton
-                            showOpenButton
-                            contentComponent={this.getTooltipContent}
+                            contentComponent={this.getTooltipContent.bind(this)}
                         />
 
                         <Toolbar />
@@ -240,7 +262,8 @@ const mapStateToProps = (state) => ({
 
 const mapDispatchToProps = dispatch => {
     return {
-        updateAppointment: (payload) => dispatch(updateAppointment(payload))
+        updateAppointment: (payload) => dispatch(updateAppointment(payload)),
+        updateJob: (payload) => dispatch(updateJob(payload))
     }
 }
 

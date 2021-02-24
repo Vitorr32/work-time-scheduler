@@ -7,7 +7,7 @@ import moment from 'moment';
 import './AppointmentForm.styles.scss';
 import { APPOINTMENT_STATE_NOT_STARTED, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
 import { CoffeeOutlined, FieldTimeOutlined } from '@ant-design/icons';
-import { getAllVacatedSpacesInPeriodUntilDueDate, getTotalHoursOfPeriods, verifyAppointmentDisponibility } from '../../utils/periods';
+import { getAllVacatedSpacesInPeriodUntilDueDate, getTotalHoursOfPeriods, mergeContinousAppointmentsInDifferentPeriods, verifyAppointmentDisponibility } from '../../utils/periods';
 import { Tooltip } from '@material-ui/core';
 
 const layout = {
@@ -33,15 +33,16 @@ class AppointmentForm extends React.Component {
     onFormSubmit(values) {
         const newJobId = this.props.jobs.length;
 
-        const appointmentsToCreate = this.state.appointmentPeriods.map(period => ({
+        const appointmentsToCreate = this.state.appointmentPeriods.map((period, index) => ({
             startDate: period.start,
             endDate: period.end,
             title: values.name,
             price: values.price,
             description: values.description,
             state: APPOINTMENT_STATE_NOT_STARTED,
-            jobId: newJobId,
-            hours: period.hours
+            hours: period.hours,
+            id: 'job_' + newJobId + 'app_' + index,
+            jobId: newJobId
         }))
 
         const newJob = {
@@ -59,7 +60,7 @@ class AppointmentForm extends React.Component {
         this.props.addAppointments(appointmentsToCreate);
     }
 
-    verifyAppointmentDisponibility([lastChange], [_, __, ___, hours, dueDate]) {
+    previewPeriods([lastChange], [_, __, ___, hours, dueDate]) {
         const { appointments, workStart, workEnd, freeStart, freeEnd } = this.props;
         if (lastChange.name.includes('hours') || lastChange.name.includes('dueDate')) {
             if (hours.value && dueDate.value) {
@@ -102,12 +103,28 @@ class AppointmentForm extends React.Component {
         }
     }
 
-    onDelayAppointmentSubmit() {
-        console.log(this.formRef.current.getFieldsValue());
-    }
+    onFutherActionSet(shouldDelay) {
+        const { appointments, workStart, workEnd, freeStart, freeEnd } = this.props;
+        const { dueDate, hours } = this.formRef.current.getFieldsValue();
 
-    onOverwriteSleepSubmit() {
+        const extraAppointments = getAllVacatedSpacesInPeriodUntilDueDate(
+            shouldDelay ? Math.min(workStart, freeStart) : Math.max(workEnd, freeEnd),
+            shouldDelay ? Math.max(workEnd, freeEnd) : Math.min(workStart, freeStart),
+            shouldDelay ? dueDate.set('year', 9999) : dueDate,
+            [...appointments, ...this.state.appointmentPeriods],
+            hours - getTotalHoursOfPeriods(this.state.appointmentPeriods),
+            shouldDelay ? dueDate : moment().startOf('day').set('hour', Math.max(workEnd, freeEnd))
+        )
 
+        const finalAppointments = mergeContinousAppointmentsInDifferentPeriods(extraAppointments, this.state.appointmentPeriods);
+
+        this.setState({
+            appointmentPeriods: finalAppointments,
+            appointmentSuccessful: true,
+            appointmentPreview: '',
+            isModalVisible: false,
+            isFutherActionModalVisible: false
+        }, () => this.onFormSubmit(this.formRef.current.getFieldsValue()))
     }
 
     validateDueDate(_, dueDate) {
@@ -134,7 +151,7 @@ class AppointmentForm extends React.Component {
                                     this.onFormSubmit(values);
                                     this.setState({ isModalVisible: false });
                                 } else {
-                                    this.setState({ isFutherActionModalVisible: true})
+                                    this.setState({ isFutherActionModalVisible: true })
                                 }
                             })
                             .catch(info => {
@@ -149,7 +166,7 @@ class AppointmentForm extends React.Component {
                         name="eventForm"
                         initialValues={{ remember: true }}
                         onFinish={(values) => this.onFormSubmit(values)}
-                        onFieldsChange={this.verifyAppointmentDisponibility.bind(this)}
+                        onFieldsChange={this.previewPeriods.bind(this)}
                     >
                         <Form.Item
                             label="Name"
@@ -205,10 +222,10 @@ class AppointmentForm extends React.Component {
                     visible={this.state.isFutherActionModalVisible}
                     footer={[
                         <Tooltip key="delay" title="Delay">
-                            <Button type="primary" onClick={this.onDelayAppointmentSubmit.bind(this)} icon={<FieldTimeOutlined />}></Button>
+                            <Button type="primary" onClick={() => this.onFutherActionSet(true)} icon={<FieldTimeOutlined />}></Button>
                         </Tooltip>,
                         <Tooltip key="overwrite_sleep" title="Overwrite Sleep">
-                            <Button type="primary" onClick={this.onOverwriteSleepSubmit.bind(this)} icon={<CoffeeOutlined />}></Button>
+                            <Button type="primary" onClick={() => this.onFutherActionSet(false)} icon={<CoffeeOutlined />}></Button>
                         </Tooltip>,
                         <Button key="back" onClick={() => this.setState({ isFutherActionModalVisible: false })}>
                             Cancel

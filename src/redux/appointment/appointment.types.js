@@ -1,3 +1,4 @@
 export const ADD_APPOINTMENTS = 'ADD_APPOINTMENTS';
 export const UPDATED_APPOINTMENT= 'UPDATED_APPOINTMENT';
 export const ADD_JOB = 'ADD_JOB';
+export const UPDATE_JOB = 'UPDATE_JOB';

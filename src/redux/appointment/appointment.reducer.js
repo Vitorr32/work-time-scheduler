@@ -1,35 +1,8 @@
-import { APPOINTMENT_STATE_NOT_STARTED } from '../../utils/constants';
 import * as types from './appointment.types';
-
-import moment from 'moment';
+import { updateAppointmentOnList, updateJobtOnList } from './appointment.utils';
 
 const INITIAL_STATE = {
-    appointments: [
-        {
-            startDate: moment().startOf('day').subtract(1, 'day').set('hour', 9),
-            endDate: moment().startOf('day').subtract(1, 'day').set('hour', 12),
-            title: 'Late Assigment',
-            price: 420.69,
-            description: 'An late assignment',
-            state: APPOINTMENT_STATE_NOT_STARTED
-        },
-        {
-            startDate: moment().subtract(1, 'hour'),
-            endDate: moment().add(1, 'hour'),
-            title: 'Current Assingment',
-            price: 69.69,
-            description: 'An assignment ocurring now',
-            state: APPOINTMENT_STATE_NOT_STARTED
-        },
-        {
-            startDate: moment().add(1, 'day').subtract(1, 'hour'),
-            endDate: moment().add(1, 'day').add(1, 'hour'),
-            title: 'Assignment in the Future',
-            price: 14.88,
-            description: 'An assignment that still have not happened yet',
-            state: APPOINTMENT_STATE_NOT_STARTED
-        }
-    ],
+    appointments: [],
     jobs: []
 };
 
@@ -40,10 +13,20 @@ const appointmentReducer = (state = INITIAL_STATE, action) => {
                 ...state,
                 appointments: [...state.appointments, ...action.payload]
             };
+        case types.UPDATED_APPOINTMENT:
+            return {
+                ...state,
+                appointments: updateAppointmentOnList(state.appointments, action.payload.appointment, action.payload.index)
+            }
         case types.ADD_JOB:
             return {
                 ...state,
                 jobs: [...state.jobs, action.payload]
+            }
+        case types.UPDATE_JOB:
+            return {
+                ...state,
+                jobs: updateJobtOnList(state.jobs, action.payload.job, action.payload.index)
             }
         default:
             return state;

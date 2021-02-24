@@ -37,7 +37,7 @@ export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, curren
         freeEnd,
         dueDate,
         currentAppointments,
-        totalHoursNeeded
+        currentlyRemainingHours
     )
 
     const distributedHoursInFreePeriod = getTotalHoursOfPeriods(vacatedFreePeriods);
@@ -56,10 +56,10 @@ export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, curren
     }
 }
 
-export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, dueDate, appointments, hoursNeeded = 0) {
+export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, dueDate, appointments, hoursNeeded, startDate) {
     const allContinuousPeriods = [];
     //Start with the period
-    let currentTimestamp = moment().add(1, 'day').startOf('day').set('hour', periodStart);
+    let currentTimestamp = startDate || moment().add(1, 'day').startOf('day').set('hour', periodStart);
     let currentContinuousPeriod = {
         start: null,
         end: null,
@@ -93,9 +93,7 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
         //Try to find an appointment that contains the current iterated hour.
         const appointment = appointments.find(appointment => {
             //Check if the current timestamp is between this appointment period
-            if (currentTimestamp.get('day') === appointment.startDate.get('day') &&
-                currentTimestamp.get('hour') >= appointment.startDate.get('hour') &&
-                currentTimestamp.get('hour') < appointment.endDate.get('hour')) {
+            if (currentTimestamp.isBetween(appointment.startDate, appointment.endDate, undefined, "[)")) {
                 return true;
             }
 
@@ -119,7 +117,7 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
                 }
             }
 
-            if (appointment.endDate.get('hour') >= periodEnd) {
+            if (appointment.endDate.isSameOrAfter(appointment.endDate.clone().startOf('day').set('hour', periodEnd))) {
                 currentTimestamp = currentTimestamp.add(1, 'day').set('hour', periodStart);
             } else {
                 currentTimestamp = currentTimestamp.set('hour', appointment.endDate.get('hour'));
@@ -128,7 +126,7 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
         }
 
         //If the current timestamp is beyond or just reached the dueDate
-        if (currentTimestamp.isSame(dueDate, 'day') && currentTimestamp.get('hour') >= dueDate.get('hour')) {
+        if (currentTimestamp.isSameOrAfter(dueDate)) {
             if (currentContinuousPeriod.start) {
                 currentContinuousPeriod.end = currentTimestamp.clone();
                 currentContinuousPeriod.hours++;
@@ -140,7 +138,7 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
         }
 
         //If the current hour is the final hour of the period, end the continuous period
-        if (currentTimestamp.get('hour') >= periodEnd) {
+        if (currentTimestamp.isSameOrAfter(currentTimestamp.clone().set('hour', periodEnd))) {
             if (currentContinuousPeriod.start) {
                 currentContinuousPeriod.end = currentTimestamp.clone();
                 currentContinuousPeriod.hours++;
@@ -177,17 +175,18 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
 export function mergeContinousAppointmentsInDifferentPeriods(appointments) {
     const mergedAppointment = [];
     const indexesToIgnore = [];
+
     appointments.forEach((appointment, index) => {
         if (indexesToIgnore.includes(index)) {
             return;
         }
 
-        const appointmentToMergeIndex = appointments.findIndex(appointmentToCompare => appointment.end === appointmentToCompare.start);
-        if (appointmentToMergeIndex != -1) {
+        const appointmentToMergeIndex = appointments.findIndex(appointmentToCompare => appointment.end.isSame(appointmentToCompare.start));
+        if (appointmentToMergeIndex !== -1) {
             indexesToIgnore.push(appointmentToMergeIndex);
 
             appointment.end = appointments[appointmentToMergeIndex].end;
-            appointment.hours = appointment.end.get('hours') - appointment.start.get('hours');
+            appointment.hours = appointment.end.diff(appointment.start, 'hours');
         }
 
         mergedAppointment.push(appointment);

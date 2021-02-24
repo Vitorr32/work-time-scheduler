@@ -68,8 +68,13 @@
         background-color: orangered;
     }
 
-    .tooltip-wrapper {
-        display: flex;
-        justify-content: space-between;
+    .appointment-done { 
+        background-color: rgb(164, 177, 219);
     }
+}
+
+.tooltip-wrapper {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
 }
