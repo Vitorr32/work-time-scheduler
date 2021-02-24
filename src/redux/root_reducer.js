@@ -7,8 +7,7 @@ import periodReducer from './period/period.reducer';
 
 const persistConfig = {
     key: 'root',
-    storage,
-    blacklist: ['period', 'appointment']
+    storage
 };
 
 const rootReducer = combineReducers({
