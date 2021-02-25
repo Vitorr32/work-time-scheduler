@@ -5,9 +5,14 @@ export const addAppointment = appointment => ({
     payload: appointment
 });
 
-export const updateAppointment = appointmentAndIndex => ({
+export const updateAppointment = appointment => ({
     type: types.UPDATED_APPOINTMENT,
-    payload: appointmentAndIndex
+    payload: appointment
+})
+
+export const deleteAppointment = id => ({
+    type: types.DELETE_APPOINTMENT,
+    payload: id
 })
 
 export const addJob = job => ({
@@ -15,7 +20,17 @@ export const addJob = job => ({
     payload: job
 })
 
-export const updateJob = jobAndIndex => ({
+export const updateJob = job => ({
     type: types.UPDATE_JOB,
-    payload: jobAndIndex
+    payload: job
+})
+
+export const deleteJob = job => ({
+    type: types.DELETE_JOB,
+    payload: job
+})
+
+export const addToHistory = job => ({
+    type: types.ADD_TO_HISTORY,
+    payload: job
 })

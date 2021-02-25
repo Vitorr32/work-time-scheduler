@@ -28,11 +28,9 @@ class PeriodSetter extends React.Component {
             case PeriodType.FREE_PERIOD:
                 this.props.setFreePeriod({ start: values.periodRange[0].get('hours'), end: values.periodRange[1].get('hours') })
                 break;
-            case PeriodType.SLEEP_PERIOD:
-                break;
-            default:
-                break;
         }
+
+        this.setState({ isModalVisible: false})
     }
 
     getPeriodLabel(periodType) {

@@ -1,7 +1,7 @@
 import { SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from "./constants";
 import moment from 'moment';
 
-export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, currentAppointments, [workStart, workEnd], [freeStart, freeEnd]) {
+export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, currentAppointments, [workStart, workEnd], [freeStart, freeEnd], startDate = null) {
     if (!workStart || !workEnd) {
         console.error("There was no work period start or end configured!");
         return;
@@ -12,7 +12,8 @@ export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, curren
         workEnd,
         dueDate,
         currentAppointments,
-        totalHoursNeeded
+        totalHoursNeeded,
+        startDate
     )
 
     const currentDistributedHours = getTotalHoursOfPeriods(vacatedWorkPeriods)

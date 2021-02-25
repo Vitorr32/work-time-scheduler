@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import Paper from '@material-ui/core/Paper';
-import { ViewState } from '@devexpress/dx-react-scheduler';
+import { EditingState, IntegratedEditing, ViewState } from '@devexpress/dx-react-scheduler';
 import {
     Scheduler,
     DayView,
@@ -10,18 +10,21 @@ import {
     Toolbar,
     ViewSwitcher,
     MonthView,
-    AppointmentTooltip
+    AppointmentTooltip,
+    DateNavigator,
+    ConfirmationDialog,
+    DragDropProvider
 } from '@devexpress/dx-react-scheduler-material-ui';
 import { Header } from '../../components/Header/Header.component';
 import { connect } from 'react-redux';
 import moment from 'moment';
+import { APPOINTMENT_STATE_COMPLETED, APPOINTMENT_STATE_TO_DO, JOB_COMPLETED, JOB_NOT_STARTED, JOB_ON_GOING } from '../../utils/constants';
+import { FieldTimeOutlined, DoubleRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { addAppointment, deleteAppointment, deleteJob, updateAppointment, updateJob } from '../../redux/appointment/appointment.actions';
+import { verifyAppointmentDisponibility } from '../../utils/periods';
+import { Button } from 'antd';
 
 import './Home.styles.scss';
-import { APPOINTMENT_STATE_COMPLETED, APPOINTMENT_STATE_NOT_STARTED } from '../../utils/constants';
-import { FieldTimeOutlined, DoubleRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { updateAppointment, updatedJob, updateJob } from '../../redux/appointment/appointment.actions';
-import { getAllVacatedSpacesInPeriodUntilDueDate, verifyAppointmentDisponibility } from '../../utils/periods';
-import { Button } from 'antd';
 
 class HomeComponent extends React.Component {
     constructor(props) {
@@ -101,7 +104,7 @@ class HomeComponent extends React.Component {
                         Delay
                         </Button>
                     <Button
-                        //onClick={() => this.onCompleteTheAppointment(props.data)}
+                        onClick={() => this.onFinishTheAppointment(props.appointmentData)}
                         icon={<DoubleRightOutlined />}
                         size={'large'}>
                         Finish
@@ -112,42 +115,89 @@ class HomeComponent extends React.Component {
     }
 
     onCompleteTheAppointment(appointment) {
-        const indexOnList = this.props.appointments.findIndex(toCompare => toCompare === appointment);
+        const { appointments, jobs } = this.props;
+
+        const updatedListOfAppointments = [...appointments];
+        const indexOnList = updatedListOfAppointments.findIndex(toCompare => toCompare.id === appointment.id);
 
         if (indexOnList === -1) {
             console.error("Unknown appointment was completed!");
             return;
         }
 
-        const jobIndex = this.findJobOfAppointment(this.props.appointments[indexOnList], true);
+        updatedListOfAppointments[indexOnList].state = APPOINTMENT_STATE_COMPLETED;
+        const associatedJob = jobs.find(job => job.id === appointment.jobId);
 
-        const updatedAppointment = Object.assign({}, this.props.appointments[indexOnList]);
-        updatedAppointment.state = APPOINTMENT_STATE_COMPLETED;
-
-        this.props.updateAppointment({ appointment: updatedAppointment, index: indexOnList });
-        this.props.updateJob({ job: this.onUpdateAppointmentOnJob(this.props.jobs[jobIndex], updatedAppointment), index: jobIndex });
+        //Check that with the conclusion of this appointment, the job was completed entirely
+        if (this.shouldDeleteJob(associatedJob, updatedListOfAppointments)) {
+            this.props.deleteJob(associatedJob);
+        } else {
+            this.props.updateAppointment(updatedListOfAppointments[indexOnList]);
+            this.props.updateJob(this.onUpdateJobStateOnAppointmentChange(associatedJob, updatedListOfAppointments));
+        }
     }
 
-    onUpdateAppointmentOnJob(job, updatedAppointment) {
-        const appointmentIndex = job.appointments.findIndex(appointment => appointment.id === updatedAppointment.id);
-        job.appointments[appointmentIndex] = updatedAppointment;
+    onUpdateJobStateOnAppointmentChange(job, allAppointments) {
+        const jobAppointments = allAppointments.filter(appointment => job.appointments.includes(appointment.id));
+
+        //If no appointment is still in the state to do, means that the job is fully completed and should be removed
+        if (jobAppointments.filter(appointment => appointment.state === APPOINTMENT_STATE_TO_DO).length === 0) {
+            job.state = JOB_COMPLETED
+            //Else if not a single appointment has started, that means the job is still on hold
+        } else if (jobAppointments.filter(appointment => appointment.state === APPOINTMENT_STATE_COMPLETED).length === 0) {
+            job.state = JOB_NOT_STARTED
+        } else {
+            job.state = JOB_ON_GOING
+        }
 
         return job;
     }
 
+    shouldDeleteJob(job, allAppointments) {
+        const jobAppointments = allAppointments.filter(appointment => job.appointments.includes(appointment.id));
+
+        return jobAppointments.filter(appointment => appointment.state === APPOINTMENT_STATE_TO_DO).length === 0;
+    }
+
     onDelayTheAppointment(appointment) {
-        const { workStart, workEnd, freeStart, freeEnd, appointments, jobs } = this.props;
+        const { workStart, workEnd, freeStart, freeEnd, appointments } = this.props;
 
-        const jobIndex = this.findJobOfAppointment(appointment, true);
+        const job = this.findJobOfAppointment(appointment);
 
-        const periodOfDelay = verifyAppointmentDisponibility(
+        const newDistributedPeriods = verifyAppointmentDisponibility(
             appointment.hours,
             moment().startOf('day').set('year', 9999),
             appointments,
             [workStart, workEnd],
             [freeStart, freeEnd],
-            jobs[jobIndex].dueDate
+            appointment.endDate
         );
+
+        const newAppointments = newDistributedPeriods.periods.map((period, index) => ({
+            startDate: period.start,
+            endDate: period.end,
+            title: job.name,
+            price: job.price,
+            description: job.description,
+            state: APPOINTMENT_STATE_TO_DO,
+            hours: period.hours,
+            id: 'job_' + job.id + '_app_' + (job.appointments.length + index),
+            jobId: job.id
+        }));
+
+        //Removed old appointment and insert new ids from the job object
+        const indexOfAppointment = job.appointments.findIndex(appoID => appoID === appointment.id);
+        job.appointments.splice(indexOfAppointment, 1, ...newAppointments.map(app => app.id))
+
+        this.props.updateJob(job);
+        this.props.deleteAppointment([appointment.id]);
+        this.props.addAppointments(newAppointments);
+    }
+
+    onFinishTheAppointment(appointment) {
+        const job = this.findJobOfAppointment(appointment);
+
+        this.props.deleteJob(job);
     }
 
     getAppointmentComponet(props) {
@@ -201,7 +251,7 @@ class HomeComponent extends React.Component {
     }
 
     isAppointmentLate(appointment) {
-        return moment().isAfter(appointment.endDate) && appointment.state === APPOINTMENT_STATE_NOT_STARTED
+        return moment().isAfter(appointment.endDate) && appointment.state === APPOINTMENT_STATE_TO_DO
     }
 
     findJobOfAppointment(appointment, index = false) {
@@ -210,6 +260,40 @@ class HomeComponent extends React.Component {
             this.props.jobs.findIndex(job => job.id === appointment.jobId)
             :
             this.props.jobs.find(job => job.id === appointment.jobId);
+    }
+
+    onAppointmentChangeCommited(props) {
+        const { appointments } = this.props;
+
+        if (props.deleted) {
+            const appointment = appointments.find(appo => appo.id === props.deleted);
+            const job = this.findJobOfAppointment(appointment);
+
+            const previewedDeletionAppointments = [...appointments];
+            previewedDeletionAppointments.splice(previewedDeletionAppointments.findIndex(appo => appo.id === props.deleted), 1)
+
+            if (this.shouldDeleteJob(job, previewedDeletionAppointments)) {
+                this.props.deleteJob(job);
+            } else {
+                job.appointments.splice(job.appointments.findIndex(appo => appo === props.deleted), 1);
+
+                this.props.deleteAppointment([props.deleted]);
+                this.props.updateJob(job);
+            }
+        }
+
+        if (props.changed) {
+            Object.keys(props.changed).forEach(changedId => {
+                const { endDate, startDate } = props.changed[changedId];
+
+                const appointment = appointments.find(appo => appo.id === changedId);
+
+                appointment.startDate = moment(startDate);
+                appointment.endDate = moment(endDate);
+
+                this.props.updateAppointment(appointment);
+            })
+        }
     }
 
     render() {
@@ -223,14 +307,24 @@ class HomeComponent extends React.Component {
                         <ViewState
                             defaultCurrentViewName="Week"
                         />
+                        <EditingState onCommitChanges={this.onAppointmentChangeCommited.bind(this)} />
+
+                        <IntegratedEditing />
+                        <ConfirmationDialog />
 
                         <DayView
+                            cellDuration={60}
                             timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
                         </DayView>
                         <WeekView
+                            cellDuration={60}
                             timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
                         </WeekView>
                         <MonthView />
+
+                        <Toolbar />
+                        <ViewSwitcher />
+                        <DateNavigator />
 
                         <Appointments
                             appointmentComponent={this.getAppointmentComponet.bind(this)}
@@ -239,11 +333,15 @@ class HomeComponent extends React.Component {
 
                         <AppointmentTooltip
                             showCloseButton
+                            showDeleteButton
+
                             contentComponent={this.getTooltipContent.bind(this)}
                         />
 
-                        <Toolbar />
-                        <ViewSwitcher />
+                        <DragDropProvider
+                            allowResize={() => false}
+                        />
+
                     </Scheduler>
                 </Paper>
             </div>
@@ -262,8 +360,11 @@ const mapStateToProps = (state) => ({
 
 const mapDispatchToProps = dispatch => {
     return {
+        addAppointments: (payload) => dispatch(addAppointment(payload)),
         updateAppointment: (payload) => dispatch(updateAppointment(payload)),
-        updateJob: (payload) => dispatch(updateJob(payload))
+        deleteAppointment: (payload) => dispatch(deleteAppointment(payload)),
+        updateJob: (payload) => dispatch(updateJob(payload)),
+        deleteJob: (payload) => dispatch(deleteJob(payload))
     }
 }
 

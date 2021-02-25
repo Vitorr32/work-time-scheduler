@@ -1,9 +1,10 @@
 import * as types from './appointment.types';
-import { updateAppointmentOnList, updateJobtOnList } from './appointment.utils';
+import { deleteAppointment, deleteJobAndAssociatedAppointments, updateAppointmentOnList, updateJobOnList } from './appointment.utils';
 
 const INITIAL_STATE = {
     appointments: [],
-    jobs: []
+    jobs: [],
+    history: []
 };
 
 const appointmentReducer = (state = INITIAL_STATE, action) => {
@@ -16,7 +17,12 @@ const appointmentReducer = (state = INITIAL_STATE, action) => {
         case types.UPDATED_APPOINTMENT:
             return {
                 ...state,
-                appointments: updateAppointmentOnList(state.appointments, action.payload.appointment, action.payload.index)
+                appointments: updateAppointmentOnList(state.appointments, action.payload)
+            }
+        case types.DELETE_APPOINTMENT:
+            return {
+                ...state,
+                appointments: deleteAppointment(state.appointments, action.payload)
             }
         case types.ADD_JOB:
             return {
@@ -26,7 +32,14 @@ const appointmentReducer = (state = INITIAL_STATE, action) => {
         case types.UPDATE_JOB:
             return {
                 ...state,
-                jobs: updateJobtOnList(state.jobs, action.payload.job, action.payload.index)
+                jobs: updateJobOnList(state.jobs, action.payload)
+            }
+        case types.DELETE_JOB:
+            const { jobs, appointments } = deleteJobAndAssociatedAppointments(action.payload, state.jobs, state.appointments)
+            return {
+                ...state,
+                jobs,
+                appointments
             }
         default:
             return state;

@@ -5,7 +5,7 @@ import { addAppointment, addJob } from '../../redux/appointment/appointment.acti
 import moment from 'moment';
 
 import './AppointmentForm.styles.scss';
-import { APPOINTMENT_STATE_NOT_STARTED, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
+import { APPOINTMENT_STATE_TO_DO, JOB_NOT_STARTED, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
 import { CoffeeOutlined, FieldTimeOutlined } from '@ant-design/icons';
 import { getAllVacatedSpacesInPeriodUntilDueDate, getTotalHoursOfPeriods, mergeContinousAppointmentsInDifferentPeriods, verifyAppointmentDisponibility } from '../../utils/periods';
 import { Tooltip } from '@material-ui/core';
@@ -30,6 +30,16 @@ class AppointmentForm extends React.Component {
         }
     }
 
+    resetFormState() {
+        this.setState({
+            isModalVisible: false,
+            isFutherActionModalVisible: false,
+            appointmentPreview: null,
+            appointmentPeriods: [],
+            appointmentSuccessful: false
+        })
+    }
+
     onFormSubmit(values) {
         const newJobId = this.props.jobs.length;
 
@@ -39,25 +49,29 @@ class AppointmentForm extends React.Component {
             title: values.name,
             price: values.price,
             description: values.description,
-            state: APPOINTMENT_STATE_NOT_STARTED,
+            state: APPOINTMENT_STATE_TO_DO,
             hours: period.hours,
-            id: 'job_' + newJobId + 'app_' + index,
+            id: 'job_' + newJobId + '_app_' + index,
             jobId: newJobId
         }))
 
         const newJob = {
             id: newJobId,
             name: values.name,
-            appointments: appointmentsToCreate,
+            appointments: appointmentsToCreate.map(appointment => appointment.id),
             price: values.price,
             description: values.description,
             dueDate: values.dueDate,
-            totalHours: values.hours
+            totalHours: values.hours,
+            state: JOB_NOT_STARTED
         }
 
 
         this.props.addJob(newJob);
         this.props.addAppointments(appointmentsToCreate);
+
+        this.resetFormState();
+        this.formRef.current.resetFields();
     }
 
     previewPeriods([lastChange], [_, __, ___, hours, dueDate]) {
@@ -127,6 +141,15 @@ class AppointmentForm extends React.Component {
         }, () => this.onFormSubmit(this.formRef.current.getFieldsValue()))
     }
 
+    allowFormToBeSubmitted() {
+        const { workStart, workEnd, freeStart, freeEnd } = this.props;
+        if (workStart && workEnd && freeStart && freeEnd) {
+            return true;
+        }
+
+        return false;
+    }
+
     validateDueDate(_, dueDate) {
         if (moment().isSameOrAfter(dueDate)) {
             return Promise.reject('The due date needs to be after now!')
@@ -136,6 +159,8 @@ class AppointmentForm extends React.Component {
     }
 
     render() {
+        const enabledForm = this.allowFormToBeSubmitted();
+
         return (
             <React.Fragment>
                 <Button type="primary" onClick={() => this.setState({ isModalVisible: true })}>Add Event</Button>
@@ -143,13 +168,12 @@ class AppointmentForm extends React.Component {
                 <Modal title="Add Event"
                     visible={this.state.isModalVisible}
                     okText={"Submit"}
-                    onCancel={() => this.setState({ isModalVisible: false })}
+                    onCancel={this.resetFormState.bind(this)}
                     onOk={() => {
                         this.formRef.current.validateFields()
                             .then(values => {
                                 if (this.state.appointmentSuccessful) {
                                     this.onFormSubmit(values);
-                                    this.setState({ isModalVisible: false });
                                 } else {
                                     this.setState({ isFutherActionModalVisible: true })
                                 }
@@ -158,6 +182,7 @@ class AppointmentForm extends React.Component {
                                 console.log('Validate Failed:', info);
                             });
                     }}
+                    okButtonProps={{ disabled: !enabledForm }}
                 >
 
                     <Form
@@ -167,20 +192,21 @@ class AppointmentForm extends React.Component {
                         initialValues={{ remember: true }}
                         onFinish={(values) => this.onFormSubmit(values)}
                         onFieldsChange={this.previewPeriods.bind(this)}
+
                     >
                         <Form.Item
                             label="Name"
                             name="name"
                             rules={[{ required: true, message: 'The event name is required' }]}
                         >
-                            <Input />
+                            <Input disabled={!enabledForm} />
                         </Form.Item>
 
                         <Form.Item
                             label="Description"
                             name="description"
                         >
-                            <Input.TextArea />
+                            <Input.TextArea disabled={!enabledForm} />
                         </Form.Item>
 
                         <Form.Item
@@ -192,6 +218,7 @@ class AppointmentForm extends React.Component {
                                 parser={price => price.replace(/\$\s?|(,*)/g, '')}
                                 min={0}
                                 precision={2}
+                                disabled={!enabledForm}
                             />
                         </Form.Item>
 
@@ -199,6 +226,7 @@ class AppointmentForm extends React.Component {
                             label="Estimated Hours"
                             name="hours"
                             rules={[{ required: true, message: 'The ETA is required to allow the scheduler to distribute time' }]}
+                            disabled={!enabledForm}
                         >
                             <InputNumber
                                 min={0} />
@@ -208,12 +236,20 @@ class AppointmentForm extends React.Component {
                             label="Due Date"
                             name="dueDate"
                             rules={[{ required: true, message: 'The dude date is required' }, { validator: this.validateDueDate }]}
+                            disabled={!enabledForm}
                         >
                             <DatePicker format={'DD/MM/YYYY HH:00'} showTime />
                         </Form.Item >
 
 
                         <span className="message">{this.state.appointmentPreview}</span>
+                        {
+                            !enabledForm ?
+                                <span className="message">
+                                    Please set the work and free period before attemping to add events to your schedule
+                                </span> : null
+                        }
+
                     </Form>
 
                 </Modal>

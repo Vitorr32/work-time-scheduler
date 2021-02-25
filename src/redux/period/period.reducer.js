@@ -1,10 +1,10 @@
 import * as types from './period.types';
 
 const INITIAL_STATE = {
-    workStart: 9,
-    workEnd: 18,
-    freeStart: 18,
-    freeEnd: 24
+    workStart: null,
+    workEnd: null,
+    freeStart: null,
+    freeEnd: null
 };
 
 const periodReducer = (state = INITIAL_STATE, action) => {
