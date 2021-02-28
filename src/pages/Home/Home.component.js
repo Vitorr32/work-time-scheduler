@@ -21,7 +21,7 @@ import moment from 'moment';
 import { APPOINTMENT_STATE_COMPLETED, APPOINTMENT_STATE_CURRENT, APPOINTMENT_STATE_DELAY, APPOINTMENT_STATE_LATE, APPOINTMENT_STATE_TO_DO, JOB_COMPLETED, JOB_NOT_STARTED, JOB_ON_GOING, SCHEDULE_FREE_TIME, SCHEDULE_FULL } from '../../utils/constants';
 import { FieldTimeOutlined, DoubleRightOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { addAppointment, deleteAppointment, deleteJob, updateAppointment, updateJob } from '../../redux/appointment/appointment.actions';
-import { verifyAppointmentDisponibility } from '../../utils/periods';
+import { createPeriodObject, verifyAppointmentDisponibility } from '../../utils/periods';
 import { Button } from 'antd';
 
 import './Home.styles.scss';
@@ -71,7 +71,7 @@ class HomeComponent extends React.Component {
             }
         })
 
-        const timeUntilNextHour = moment().add(1, 'hour').startOf('hour').diff(moment(), 'milliseconds');
+        const timeUntilNextHour = moment().add(1, 'hour').startOf('hour').add(1, 'second').diff(moment(), 'milliseconds');
 
         this.setState({
             appointmentUpdateInterval: setTimeout(() => this.onUpdateAppointmentsState(), timeUntilNextHour)
@@ -138,11 +138,11 @@ class HomeComponent extends React.Component {
             <Appointments.AppointmentContent {...props} style={{ height: '100%' }}>
                 <div className="app-appointment-content">
                     <div className="title">
-                        {data.title}
+                        {job.name}
                     </div>
                     {
-                        data.price
-                            ? <div className="value-wrapper">$ {data.price.toFixed(2)}</div>
+                        job.price
+                            ? <div className="value-wrapper">$ {job.price.toFixed(2)}</div>
                             : null
                     }
                     <span>Due to: {job.dueDate.format('DD/MM/YYYY HH:00')}</span>
@@ -180,7 +180,7 @@ class HomeComponent extends React.Component {
                     </Grid>
                     <Grid item xs={10}>
                         <div className="title" >
-                            {appointmentData.title}
+                            {job.name}
                         </div>
                         <div >
                             {appointmentData.startDate.format('dddd, DD MMMM YYYY')}
@@ -209,10 +209,10 @@ class HomeComponent extends React.Component {
                 </Grid>
 
                 {
-                    appointmentData.description
+                    job.description
                         ?
                         <p className="description">
-                            {appointmentData.description}
+                            {job.description}
                         </p>
                         :
                         null
@@ -302,8 +302,6 @@ class HomeComponent extends React.Component {
 
         const job = this.findJobOfAppointment(appointment);
 
-        console.log("appointment.endDate", appointment.endDate.format("DD/MM/YYYY HH:mm"))
-
         const newDistributedPeriods = verifyAppointmentDisponibility(
             appointment.hours,
             job.dueDate,
@@ -312,8 +310,6 @@ class HomeComponent extends React.Component {
             [freeStart, freeEnd],
             appointment.endDate
         );
-
-        console.log(newDistributedPeriods);
 
         if (newDistributedPeriods.state === SCHEDULE_FREE_TIME || newDistributedPeriods === SCHEDULE_FULL) {
             this.setState({
@@ -326,19 +322,9 @@ class HomeComponent extends React.Component {
     }
 
     onConfirmationOfRealocation(directState = null) {
-        const { periods, state, job, appointment } = directState || this.state.realocatedState;
+        const { periods, job, appointment } = directState || this.state.realocatedState;
 
-        const newAppointments = periods.map((period, index) => ({
-            startDate: period.start,
-            endDate: period.end,
-            title: job.name,
-            price: job.price,
-            description: job.description,
-            state: APPOINTMENT_STATE_TO_DO,
-            hours: period.hours,
-            id: 'job_' + job.id + '_app_' + (job.appointments.length + index),
-            jobId: job.id
-        }));
+        const newAppointments = periods.map(period => createPeriodObject(period, job.id))
 
         //Removed old appointment and insert new ids from the job object
         const indexOfAppointment = job.appointments.findIndex(appoID => appoID === appointment.id);
@@ -389,21 +375,6 @@ class HomeComponent extends React.Component {
         )
     }
 
-    getStartDayHour() {
-        if (this.props.workStart && this.props.freeStart) {
-            return Math.min(this.props.workStart, this.props.freeStart);
-        }
-        return 0;
-    }
-
-    getEndDayHour() {
-        if (this.props.workEnd && this.props.freeEnd) {
-            return Math.max(this.props.workEnd, this.props.freeEnd);
-        }
-
-        return 24;
-    }
-
     findJobOfAppointment(appointment, index = false) {
         return index
             ?
@@ -448,6 +419,7 @@ class HomeComponent extends React.Component {
 
                 appointment.startDate = newStartDate;
                 appointment.endDate = newEndDate;
+                appointment.state = this.checkStateOfAppointment(appointment)
 
                 this.props.updateAppointment(appointment);
             })
@@ -510,20 +482,18 @@ class HomeComponent extends React.Component {
                             visible={this.state.isRealocateModalVisible}
                             onOk={() => this.onConfirmationOfRealocation()}
                             onCancel={() => this.setState({ isRealocateModalVisible: false, realocatedState: null })}>
-                            {
-                                this.state.realocatedState.state === SCHEDULE_FREE_TIME
-                                    ?
-                                    <p>
-                                        The appointment submitted can't be concluded during your work period,
-                                        do you want to allocate your free time for this appointment?
-                            </p>
-                                    :
-                                    <p>
-                                        The appointment submitted can't be concluded during your work or free time,
-                                        should the scheduler ignore your sleep period and allocate time in it?
-                            </p>
-                            }
+                            <p style={{ marginTop: '20px' }}>
+                                {
+                                    this.state.realocatedState.state === SCHEDULE_FREE_TIME
+                                        ?
 
+                                        `The appointment submitted can't be concluded during your work period,
+                                        do you want to allocate your free time for this appointment?`
+                                        :
+                                        `The appointment submitted can't be concluded during your work or free time,
+                                        should the scheduler ignore your sleep period and allocate time in it?`
+                                }
+                            </p>
                         </Modal>
                         :
                         null

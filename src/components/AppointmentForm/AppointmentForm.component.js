@@ -5,9 +5,9 @@ import { addAppointment, addJob } from '../../redux/appointment/appointment.acti
 import moment from 'moment';
 
 import './AppointmentForm.styles.scss';
-import { APPOINTMENT_STATE_TO_DO, JOB_NOT_STARTED, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
+import { JOB_NOT_STARTED, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
 import { CoffeeOutlined, FieldTimeOutlined } from '@ant-design/icons';
-import { getAllVacatedSpacesInPeriodUntilDueDate, getTotalHoursOfPeriods, mergeContinousAppointmentsInDifferentPeriods, verifyAppointmentDisponibility } from '../../utils/periods';
+import { createPeriodObject, getAllVacatedSpacesInPeriodUntilDueDate, getTotalHoursOfPeriods, mergeContinousAppointmentsInDifferentPeriods, verifyAppointmentDisponibility } from '../../utils/periods';
 import { Tooltip } from '@material-ui/core';
 
 const layout = {
@@ -41,19 +41,9 @@ class AppointmentForm extends React.Component {
     }
 
     onFormSubmit(values) {
-        const newJobId = this.props.jobs.length;
+        const newJobId = moment().format('x');
 
-        const appointmentsToCreate = this.state.appointmentPeriods.map((period, index) => ({
-            startDate: period.start,
-            endDate: period.end,
-            title: values.name,
-            price: values.price,
-            description: values.description,
-            state: APPOINTMENT_STATE_TO_DO,
-            hours: period.hours,
-            id: 'job_' + newJobId + '_app_' + index,
-            jobId: newJobId
-        }))
+        const appointmentsToCreate = this.state.appointmentPeriods.map((period) => createPeriodObject(period, newJobId))
 
         const newJob = {
             id: newJobId,
@@ -61,11 +51,10 @@ class AppointmentForm extends React.Component {
             appointments: appointmentsToCreate.map(appointment => appointment.id),
             price: values.price,
             description: values.description,
-            dueDate: values.dueDate,
+            dueDate: values.dueDate.startOf('hour'),
             totalHours: values.hours,
             state: JOB_NOT_STARTED
         }
-
 
         this.props.addJob(newJob);
         this.props.addAppointments(appointmentsToCreate);
@@ -78,7 +67,7 @@ class AppointmentForm extends React.Component {
         const { appointments, workStart, workEnd, freeStart, freeEnd } = this.props;
         if (lastChange.name.includes('hours') || lastChange.name.includes('dueDate')) {
             if (hours.value && dueDate.value) {
-                const verifiedDisponibility = verifyAppointmentDisponibility(hours.value, dueDate.value, appointments, [workStart, workEnd], [freeStart, freeEnd]);
+                const verifiedDisponibility = verifyAppointmentDisponibility(hours.value, dueDate.value.startOf('hour'), appointments, [workStart, workEnd], [freeStart, freeEnd]);
 
                 if (!verifiedDisponibility) {
                     console.error("Error on saving the periods")
@@ -124,13 +113,13 @@ class AppointmentForm extends React.Component {
         const extraAppointments = getAllVacatedSpacesInPeriodUntilDueDate(
             shouldDelay ? Math.min(workStart, freeStart) : Math.max(workEnd, freeEnd),
             shouldDelay ? Math.max(workEnd, freeEnd) : Math.min(workStart, freeStart),
-            shouldDelay ? dueDate.set('year', 9999) : dueDate,
+            shouldDelay ? dueDate.set('year', 9999).startOf('hour') : dueDate.startOf('hour'),
             [...appointments, ...this.state.appointmentPeriods],
             hours - getTotalHoursOfPeriods(this.state.appointmentPeriods),
-            shouldDelay ? dueDate : moment().startOf('day').set('hour', Math.max(workEnd, freeEnd))
+            shouldDelay ? dueDate.startOf('hour') : moment().startOf('day').set('hour', Math.max(workEnd, freeEnd))
         )
 
-        const finalAppointments = mergeContinousAppointmentsInDifferentPeriods(extraAppointments, this.state.appointmentPeriods);
+        const finalAppointments = mergeContinousAppointmentsInDifferentPeriods([...extraAppointments, ...this.state.appointmentPeriods]);
 
         this.setState({
             appointmentPeriods: finalAppointments,

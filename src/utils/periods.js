@@ -1,4 +1,5 @@
-import { SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from "./constants";
+import { APPOINTMENT_STATE_TO_DO, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from "./constants";
+import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 
 export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, currentAppointments, [workStart, workEnd], [freeStart, freeEnd], startDate = null) {
@@ -64,25 +65,35 @@ export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, curren
 
 export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, dueDate, appointments, hoursNeeded, startDate) {
     const allContinuousPeriods = [];
-    const allPeriods = [];
 
     // console.log("startDate", startDate);
     //Start with the period
     let currentTimestamp = startDate ? startDate.clone() : moment().add(1, 'day').startOf('day').set('hour', periodStart);
+    //Check if the period end is on the same day as period start, or if the values of the hours wrap up to the next day
+    let currentPeriondEnd = periodEnd > periodStart
+        ? currentTimestamp.clone().set('hour', periodEnd)
+        : currentTimestamp.clone().add(1, 'day').set('hour', periodEnd);
+    //The period start is always in the same day, so the above conditional value is not necessary 
+    let currentPeriodStart = currentTimestamp.clone().set('hour', periodStart)
+    // let currentPeriodStart = periodEnd > periodStart
+    //     ? currentTimestamp.clone().startOf('day').set('hour', periodStart)
+    //     : currentTimestamp.clone().subtract(1, 'day').startOf('day').set('hour', periodStart)
+
     let currentContinuousPeriod = {
         start: null,
         end: null,
         hours: 0
     }
 
-    // console.log("periodStar", periodStart);
-    // console.log("periodEnd", periodEnd)
+    // console.log("periodStar", currentPeriodStart);
+    // console.log("periodEnd", currentPeriondEnd)
 
     // console.log('currentTimestamp', currentTimestamp);
-    // console.log('dueDate', dueDate);
+    // console.log('dueDate', dueDate.format("DD/MM/YYYY HH:mm"));
 
-    while (currentTimestamp.isBefore(dueDate)) {
+    while (currentTimestamp.isSameOrBefore(dueDate)) {
         // console.log(currentTimestamp.format("DD/MM HH:mm"))
+        // console.log('currentContinuousPeriod', Object.assign({}, currentContinuousPeriod))
         /*  Check if the periods already obtained already are enough for the appointment, so theres no 
             to continue the while loop*/
         if (hoursNeeded != 0) {
@@ -104,6 +115,7 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
                     break;
                 }
             } else if (getTotalHoursOfPeriods(allContinuousPeriods) >= hoursNeeded) {
+                // console.log("SKipping due to total reached hours");
                 break;
             }
         }
@@ -136,8 +148,10 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
                 }
             }
 
-            if (appointment.endDate.isSameOrAfter(appointment.endDate.clone().startOf('day').set('hour', periodEnd))) {
-                currentTimestamp = currentTimestamp.add(1, 'day').set('hour', periodStart);
+            if (appointment.endDate.isSameOrAfter(currentPeriondEnd)) {
+                currentPeriondEnd = currentPeriondEnd.add(1, 'day');
+                currentPeriodStart = currentPeriodStart.add(1, 'day');
+                currentTimestamp = currentPeriodStart.clone();
             } else {
                 currentTimestamp = currentTimestamp.set('hour', appointment.endDate.get('hour'));
             }
@@ -145,6 +159,8 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
         }
 
         //If the current timestamp is beyond or just reached the dueDate
+        // console.log('dueDate', dueDate.format('DD/MM HH:mm'))
+        // console.log('currentTimestamp', currentTimestamp.format('DD/MM HH:mm'))
         if (currentTimestamp.isSameOrAfter(dueDate)) {
             // console.log("SKipping by due date reached");
             if (currentContinuousPeriod.start) {
@@ -158,7 +174,7 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
         }
 
         //If the current hour is the final hour of the period, end the continuous period
-        if (currentTimestamp.isSameOrAfter(currentTimestamp.clone().set('hour', periodEnd))) {
+        if (currentTimestamp.isSameOrAfter(currentPeriondEnd)) {
             // console.log("SKipping by period end");
             if (currentContinuousPeriod.start) {
                 currentContinuousPeriod.end = currentTimestamp.clone();
@@ -174,7 +190,9 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
                 }
             }
 
-            currentTimestamp = currentTimestamp.add(1, 'day').set('hour', periodStart);
+            currentPeriondEnd = currentPeriondEnd.add(1, 'day');
+            currentPeriodStart = currentPeriodStart.add(1, 'day');
+            currentTimestamp = currentPeriodStart.clone();
             continue;
         }
 
@@ -188,6 +206,7 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
         }
 
         currentTimestamp = currentTimestamp.add(1, 'hour');
+        // console.log("Reached the end of loop")
     }
 
     return allContinuousPeriods;
@@ -218,4 +237,15 @@ export function mergeContinousAppointmentsInDifferentPeriods(appointments) {
 
 export function getTotalHoursOfPeriods(periods) {
     return periods.reduce((sum, period) => ({ hours: sum.hours + period.hours }), { hours: 0 }).hours;
+}
+
+export function createPeriodObject({ start, end, hours }, jobId) {
+    return {
+        startDate: start,
+        endDate: end,
+        state: APPOINTMENT_STATE_TO_DO,
+        hours: hours,
+        id: 'job_' + jobId + '_app_' + uuidv4(),
+        jobId: jobId
+    }
 }
