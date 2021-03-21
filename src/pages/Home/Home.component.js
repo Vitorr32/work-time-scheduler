@@ -5,7 +5,6 @@ import { EditingState, IntegratedEditing, ViewState } from '@devexpress/dx-react
 import {
     Scheduler,
     DayView,
-    WeekView,
     Appointments,
     Toolbar,
     ViewSwitcher,
@@ -19,7 +18,7 @@ import { Header } from '../../components/Header/Header.component';
 import { connect } from 'react-redux';
 import moment from 'moment';
 import { APPOINTMENT_STATE_COMPLETED, APPOINTMENT_STATE_CURRENT, APPOINTMENT_STATE_DELAY, APPOINTMENT_STATE_LATE, APPOINTMENT_STATE_TO_DO, JOB_COMPLETED, JOB_NOT_STARTED, JOB_ON_GOING, SCHEDULE_FREE_TIME, SCHEDULE_FULL } from '../../utils/constants';
-import { FieldTimeOutlined, DoubleRightOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { FieldTimeOutlined, DoubleRightOutlined, CheckCircleOutlined, ExclamationCircleOutlined, DoubleLeftOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { addAppointment, deleteAppointment, deleteJob, updateAppointment, updateJob } from '../../redux/appointment/appointment.actions';
 import { createPeriodObject, verifyAppointmentDisponibility } from '../../utils/periods';
 import { Button } from 'antd';
@@ -34,6 +33,8 @@ class HomeComponent extends React.Component {
         super(props);
 
         this.state = {
+            currentDay: moment().startOf('day').toDate(),
+            currentViewName: 'Day',
             appointmentUpdateInterval: null,
             isRealocateModalVisible: false,
             realocatedState: {
@@ -426,6 +427,59 @@ class HomeComponent extends React.Component {
         }
     }
 
+    getViewSwitcherComponent(props) {
+        return <ViewSwitcher.Switcher {...props} onChange={(viewName) => this.setState({ currentViewName: viewName })}></ViewSwitcher.Switcher >
+    }
+
+    getNavigatorRootComponent(props) {
+        return <DateNavigator.Root className="date-navigator-root" {...props}></DateNavigator.Root>
+    }
+
+    getDateNavigatorComponent(props) {
+        const isForward = props.type === 'forward'
+        return (
+            <div className={`navigation-pair-button-wrapper ${isForward ? '' : 'reverse'}`}>
+                <button onClick={() => this.onNaviagateDate(props.type)}>
+                    {isForward ? <RightOutlined /> : <LeftOutlined />}
+                </button>
+                {
+                    this.state.currentViewName === 'Day'
+                        ?
+                        <button onClick={() => this.onNaviagateDate(props.type, true)}>
+                            {props.type === 'forward' ? <DoubleRightOutlined /> : <DoubleLeftOutlined />}
+                        </button>
+                        :
+                        null
+                }
+            </div>
+        )
+    }
+
+    onNaviagateDate(direction, fastForward = false) {
+        const currentDay = this.state.currentDay;
+
+        switch (this.state.currentViewName) {
+            case 'Day':
+                this.setState({
+                    currentDay: direction === 'forward'
+                        ?
+                        moment(currentDay).add(fastForward ? 7 : 1, 'day').toDate()
+                        :
+                        moment(currentDay).subtract(fastForward ? 7 : 1, 'day').toDate()
+                })
+                return
+            case 'Month':
+                this.setState({
+                    currentDay: direction === 'forward'
+                        ?
+                        moment(currentDay).add(1, 'month').toDate()
+                        :
+                        moment(currentDay).subtract(1, 'month').toDate()
+                })
+                return;
+        }
+    }
+
     render() {
         return (
             <div id="home-wrapper">
@@ -435,7 +489,8 @@ class HomeComponent extends React.Component {
                         locale={"en-UK"}
                         data={this.props.appointments}>
                         <ViewState
-                            defaultCurrentViewName="Week"
+                            currentDate={this.state.currentDay}
+                            currentViewName={this.state.currentViewName}
                         />
                         <EditingState onCommitChanges={this.onAppointmentChangeCommited.bind(this)} />
 
@@ -443,18 +498,18 @@ class HomeComponent extends React.Component {
                         <ConfirmationDialog />
 
                         <DayView
+                            displayName={'Week'}
                             cellDuration={60}
+                            intervalCount={7}
                             timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
                         </DayView>
-                        <WeekView
-                            cellDuration={60}
-                            timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
-                        </WeekView>
                         <MonthView />
 
                         <Toolbar />
-                        <ViewSwitcher />
-                        <DateNavigator />
+                        <ViewSwitcher switcherComponent={this.getViewSwitcherComponent.bind(this)} />
+                        <DateNavigator
+                            rootComponent={this.getNavigatorRootComponent.bind(this)}
+                            navigationButtonComponent={this.getDateNavigatorComponent.bind(this)} />
 
                         <Appointments
                             appointmentComponent={this.getAppointmentComponet.bind(this)}
