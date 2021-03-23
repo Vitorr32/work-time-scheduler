@@ -1,4 +1,4 @@
-import { Input, Form, Modal, InputNumber, DatePicker, Button } from 'antd';
+import { Input, Form, Modal, InputNumber, DatePicker, Button, Checkbox, Tooltip } from 'antd';
 import React from 'react';
 import { connect } from 'react-redux';
 import { addAppointment, addJob } from '../../redux/appointment/appointment.actions';
@@ -8,7 +8,6 @@ import './AppointmentForm.styles.scss';
 import { JOB_NOT_STARTED, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
 import { CoffeeOutlined, FieldTimeOutlined } from '@ant-design/icons';
 import { createPeriodObject, getAllVacatedSpacesInPeriodUntilDueDate, getTotalHoursOfPeriods, mergeContinousAppointmentsInDifferentPeriods, verifyAppointmentDisponibility } from '../../utils/periods';
-import { Tooltip } from '@material-ui/core';
 
 const layout = {
     labelCol: { span: 8 },
@@ -63,11 +62,11 @@ class AppointmentForm extends React.Component {
         this.formRef.current.resetFields();
     }
 
-    previewPeriods([lastChange], [_, __, ___, hours, dueDate]) {
+    previewPeriods([lastChange], [_, __, ___, hours, dueDate, continuousPeriod]) {
         const { appointments, workStart, workEnd, freeStart, freeEnd } = this.props;
         if (lastChange.name.includes('hours') || lastChange.name.includes('dueDate')) {
             if (hours.value && dueDate.value) {
-                const verifiedDisponibility = verifyAppointmentDisponibility(hours.value, dueDate.value.startOf('hour'), appointments, [workStart, workEnd], [freeStart, freeEnd]);
+                const verifiedDisponibility = verifyAppointmentDisponibility(hours.value, dueDate.value.startOf('hour'), appointments, [workStart, workEnd], [freeStart, freeEnd], null, continuousPeriod.value);
 
                 if (!verifiedDisponibility) {
                     console.error("Error on saving the periods")
@@ -108,7 +107,7 @@ class AppointmentForm extends React.Component {
 
     onFutherActionSet(shouldDelay) {
         const { appointments, workStart, workEnd, freeStart, freeEnd } = this.props;
-        const { dueDate, hours } = this.formRef.current.getFieldsValue();
+        const { dueDate, hours, continuousPeriod } = this.formRef.current.getFieldsValue();
 
         const extraAppointments = getAllVacatedSpacesInPeriodUntilDueDate(
             shouldDelay ? Math.min(workStart, freeStart) : Math.max(workEnd, freeEnd),
@@ -116,7 +115,8 @@ class AppointmentForm extends React.Component {
             shouldDelay ? dueDate.set('year', 9999).startOf('hour') : dueDate.startOf('hour'),
             [...appointments, ...this.state.appointmentPeriods],
             hours - getTotalHoursOfPeriods(this.state.appointmentPeriods),
-            shouldDelay ? dueDate.startOf('hour') : moment().startOf('day').set('hour', Math.max(workEnd, freeEnd))
+            shouldDelay ? dueDate.startOf('hour') : moment().startOf('day').set('hour', Math.max(workEnd, freeEnd)),
+            continuousPeriod
         )
 
         const finalAppointments = mergeContinousAppointmentsInDifferentPeriods([...extraAppointments, ...this.state.appointmentPeriods]);
@@ -178,7 +178,7 @@ class AppointmentForm extends React.Component {
                         {...layout}
                         ref={this.formRef}
                         name="eventForm"
-                        initialValues={{ remember: true }}
+                        initialValues={{ continuousPeriod: true }}
                         onFinish={(values) => this.onFormSubmit(values)}
                         onFieldsChange={this.previewPeriods.bind(this)}
 
@@ -229,6 +229,13 @@ class AppointmentForm extends React.Component {
                         >
                             <DatePicker format={'DD/MM/YYYY HH:00'} showTime />
                         </Form.Item >
+                        
+                        <Tooltip title="Whether the Scheduler should focus on finding continuous periods or just distribute the event in the open periods avaliable">
+                            <Form.Item label="Continuous Priority" valuePropName='checked' name="continuousPeriod">
+                                <Checkbox></Checkbox>
+
+                            </Form.Item>
+                        </Tooltip>
 
 
                         <span className="message">{this.state.appointmentPreview}</span>

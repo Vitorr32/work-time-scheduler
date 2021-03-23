@@ -33,7 +33,7 @@ class HomeComponent extends React.Component {
         super(props);
 
         this.state = {
-            currentDay: moment().startOf('day').toDate(),
+            currentDay: moment().startOf('week').toDate(),
             currentViewName: 'Day',
             appointmentUpdateInterval: null,
             isRealocateModalVisible: false,

@@ -2,20 +2,23 @@ import { APPOINTMENT_STATE_TO_DO, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WO
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 
-export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, currentAppointments, [workStart, workEnd], [freeStart, freeEnd], startDate = null) {
+export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, currentAppointments, [workStart, workEnd], [freeStart, freeEnd], startDate = null, continuosPeriodPriorization = false) {
     if (!workStart || !workEnd) {
         console.error("There was no work period start or end configured!");
         return;
     }
 
-    const vacatedWorkPeriods = getAllVacatedSpacesInPeriodUntilDueDate(
+    console.log("continuosPeriodPriorization", continuosPeriodPriorization)
+
+    const vacatedWorkPeriods = pickBestContinuosPeriods(getAllVacatedSpacesInPeriodUntilDueDate(
         workStart,
         workEnd,
         dueDate,
         currentAppointments,
         totalHoursNeeded,
-        startDate
-    )
+        startDate,
+        continuosPeriodPriorization
+    ), totalHoursNeeded)
 
     const currentDistributedHours = getTotalHoursOfPeriods(vacatedWorkPeriods)
 
@@ -36,14 +39,15 @@ export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, curren
 
     // console.log(currentlyRemainingHours);
 
-    const vacatedFreePeriods = getAllVacatedSpacesInPeriodUntilDueDate(
+    const vacatedFreePeriods = pickBestContinuosPeriods(getAllVacatedSpacesInPeriodUntilDueDate(
         freeStart,
         freeEnd,
         dueDate,
         currentAppointments,
         currentlyRemainingHours,
-        startDate
-    )
+        startDate,
+        continuosPeriodPriorization
+    ), currentlyRemainingHours)
 
     // console.log(vacatedFreePeriods);
 
@@ -63,7 +67,7 @@ export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, curren
     }
 }
 
-export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, dueDate, appointments, hoursNeeded, startDate) {
+export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, dueDate, appointments, hoursNeeded, startDate, getAllPeriods = false) {
     const allContinuousPeriods = [];
 
     // console.log("startDate", startDate);
@@ -96,7 +100,7 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
         // console.log('currentContinuousPeriod', Object.assign({}, currentContinuousPeriod))
         /*  Check if the periods already obtained already are enough for the appointment, so theres no 
             to continue the while loop*/
-        if (hoursNeeded != 0) {
+        if (!getAllPeriods && hoursNeeded != 0) {
             if (currentContinuousPeriod.start) {
                 if (getTotalHoursOfPeriods([...allContinuousPeriods, { hours: 1 + currentContinuousPeriod.hours }]) >= hoursNeeded) {
 
@@ -233,6 +237,44 @@ export function mergeContinousAppointmentsInDifferentPeriods(appointments) {
     })
 
     return mergedAppointment;
+}
+
+export function pickBestContinuosPeriods(periods, neededHours) {
+    //If the periods are not, or just barely, enough to contain the event, just return the array as it is
+    if (getTotalHoursOfPeriods(periods) <= neededHours) {
+        return periods;
+    }
+
+    //Sort the periods by hours and then by earliest
+    periods.sort((a, b) =>
+        (a.hours > b.hours) ? -1 : (b.hours > a.hours) ? 1 : a.start.isBefore(b.start) ? -1 : a.start.isBefore(b.start) ? 1 : 0
+    );
+
+    let remainingHours = neededHours;
+    const currentPeriods = []
+
+    for (let i = 0; i < periods.length; i++) {
+        const currentPeriod = periods[i];
+        if (currentPeriod === remainingHours) {
+            currentPeriods.push(currentPeriod);
+            break;
+        }
+        else if (currentPeriod.hours > remainingHours) {
+            //Remove from the period the extra hours and put it in the array of periods.
+            const hourDifference = currentPeriod.hours - remainingHours;
+
+            currentPeriod.hours = currentPeriod.hours - hourDifference;
+            currentPeriod.end = currentPeriod.end.subtract(hourDifference, 'hours');
+            currentPeriods.push(currentPeriod);
+
+            break;
+        } else {
+            currentPeriods.push(currentPeriod);
+            remainingHours -= currentPeriod.hours;
+        }
+    }
+
+    return currentPeriods;
 }
 
 export function getTotalHoursOfPeriods(periods) {
