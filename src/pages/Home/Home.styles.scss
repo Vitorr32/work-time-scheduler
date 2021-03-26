@@ -127,12 +127,19 @@
             }
 
             &:active {
-                background-color: rgba(0, 0, 0, 0.20);
+                background-color: rgba(0, 0, 0, 0.2);
             }
         }
 
-        &.reverse{
+        &.reverse {
             flex-direction: row-reverse;
         }
     }
+}
+
+.toolbar-flexible-space {
+    display: flex;
+    flex: 1 !important;
+    justify-content: flex-end;
+    padding: 0px 20px;
 }

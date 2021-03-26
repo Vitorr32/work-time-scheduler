@@ -27,6 +27,7 @@ import './Home.styles.scss';
 import { Grid } from '@material-ui/core';
 import { AccessTime, Lens } from '@material-ui/icons';
 import Modal from 'antd/lib/modal/Modal';
+import Checkbox from 'antd/lib/checkbox/Checkbox';
 
 class HomeComponent extends React.Component {
     constructor(props) {
@@ -42,8 +43,24 @@ class HomeComponent extends React.Component {
                 periods: [],
                 appointment: null,
                 job: null
-            }
+            },
+            isAppointmentTooltipVisible: false,
+            appointmentTooltipMetadata: {
+                target: null,
+                data: {},
+            },
+            shouldShowSleepPeriod: true,
+            startDayViewHour: 0,
+            endDayViewHour: 24
         }
+
+        this.toggleVisibility = () => {
+            this.setState({ isAppointmentTooltipVisible: !this.state.isAppointmentTooltipVisible });
+        };
+
+        this.onAppointmentMetaChange = ({ data, target } = { data: {}, target: null }) => {
+            this.setState({ appointmentTooltipMetadata: { data, target } });
+        };
     }
 
     componentDidMount() {
@@ -222,6 +239,7 @@ class HomeComponent extends React.Component {
 
                 <div className="tooltip-wrapper">
                     <Button
+                        disabled={appointmentData.state === APPOINTMENT_STATE_COMPLETED}
                         onClick={() => this.onCompleteTheAppointment(appointmentData)}
                         icon={<CheckCircleOutlined />}
                         size={'large'}>
@@ -261,6 +279,9 @@ class HomeComponent extends React.Component {
         //Check that with the conclusion of this appointment, the job was completed entirely
         if (this.shouldDeleteJob(associatedJob, updatedListOfAppointments)) {
             this.props.deleteJob(associatedJob);
+
+            this.toggleVisibility();
+            this.onAppointmentMetaChange();
         } else {
             this.props.updateAppointment(updatedListOfAppointments[indexOnList]);
             this.props.updateJob(this.onUpdateJobStateOnAppointmentChange(associatedJob, updatedListOfAppointments));
@@ -317,6 +338,9 @@ class HomeComponent extends React.Component {
                 realocatedState: { ...newDistributedPeriods, appointment, job },
                 isRealocateModalVisible: true
             })
+
+            this.toggleVisibility();
+            this.onAppointmentMetaChange();
         } else {
             this.onConfirmationOfRealocation({ ...newDistributedPeriods, appointment, job })
         }
@@ -345,6 +369,9 @@ class HomeComponent extends React.Component {
         const job = this.findJobOfAppointment(appointment);
 
         this.props.deleteJob(job);
+
+        this.toggleVisibility();
+        this.onAppointmentMetaChange();
     }
 
     getAppointmentComponet(props) {
@@ -369,6 +396,17 @@ class HomeComponent extends React.Component {
                 className={className}
                 style={{
                     ...style
+                }}
+                onClick={({ target, data }) => {
+                    let targetElement = target;
+
+                    while (true) {
+                        targetElement = targetElement.parentElement;
+                        if (targetElement.style.position === 'absolute') { break; }
+                    }
+
+                    this.onAppointmentMetaChange({ target: targetElement, data });
+                    this.toggleVisibility();
                 }}
             >
                 {children}
@@ -402,6 +440,9 @@ class HomeComponent extends React.Component {
                 this.props.deleteAppointment([props.deleted]);
                 this.props.updateJob(job);
             }
+
+            this.toggleVisibility();
+            this.onAppointmentMetaChange();
         }
 
         if (props.changed) {
@@ -425,6 +466,26 @@ class HomeComponent extends React.Component {
                 this.props.updateAppointment(appointment);
             })
         }
+    }
+
+    getToolbarFreeSpaceComponent() {
+        return (
+            <Toolbar.FlexibleSpace className="toolbar-flexible-space" >
+                <Checkbox
+                    checked={this.state.shouldShowSleepPeriod}
+                    onChange={(event) => {
+                        const { workStart, workEnd, freeStart, freeEnd } = this.props;
+                        const checked = event.target.checked
+                        this.setState({
+                            shouldShowSleepPeriod: checked,
+                            startDayViewHour: checked ? 0 : Math.min(workStart, freeStart),
+                            endDayViewHour: checked ? 24 : Math.max(workEnd, freeEnd)
+                        })
+                    }} >
+                    Show Sleep Period
+                </Checkbox>
+            </Toolbar.FlexibleSpace>
+        )
     }
 
     getViewSwitcherComponent(props) {
@@ -480,6 +541,8 @@ class HomeComponent extends React.Component {
         }
     }
 
+    getEarliestDate
+
     render() {
         return (
             <div id="home-wrapper">
@@ -501,11 +564,13 @@ class HomeComponent extends React.Component {
                             displayName={'Week'}
                             cellDuration={60}
                             intervalCount={7}
+                            startDayHour={this.state.startDayViewHour}
+                            endDayHour={this.state.endDayViewHour}
                             timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
                         </DayView>
                         <MonthView />
 
-                        <Toolbar />
+                        <Toolbar flexibleSpaceComponent={this.getToolbarFreeSpaceComponent.bind(this)} />
                         <ViewSwitcher switcherComponent={this.getViewSwitcherComponent.bind(this)} />
                         <DateNavigator
                             rootComponent={this.getNavigatorRootComponent.bind(this)}
@@ -519,6 +584,10 @@ class HomeComponent extends React.Component {
                         <AppointmentTooltip
                             showCloseButton
                             showDeleteButton
+                            visible={this.state.isAppointmentTooltipVisible}
+                            appointmentMeta={this.state.appointmentTooltipMetadata}
+                            onAppointmentMetaChange={this.onAppointmentMetaChange}
+                            onVisibilityChange={() => this.setState({ isAppointmentTooltipVisible: false })}
 
                             contentComponent={this.getTooltipContent.bind(this)}
                         />
