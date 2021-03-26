@@ -18,13 +18,13 @@ import { Header } from '../../components/Header/Header.component';
 import { connect } from 'react-redux';
 import moment from 'moment';
 import { APPOINTMENT_STATE_COMPLETED, APPOINTMENT_STATE_CURRENT, APPOINTMENT_STATE_DELAY, APPOINTMENT_STATE_LATE, APPOINTMENT_STATE_TO_DO, JOB_COMPLETED, JOB_NOT_STARTED, JOB_ON_GOING, SCHEDULE_FREE_TIME, SCHEDULE_FULL } from '../../utils/constants';
-import { FieldTimeOutlined, DoubleRightOutlined, CheckCircleOutlined, ExclamationCircleOutlined, DoubleLeftOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
+import { FieldTimeOutlined, DoubleRightOutlined, CheckCircleOutlined, ExclamationCircleOutlined, DoubleLeftOutlined, LeftOutlined, RightOutlined, SplitCellsOutlined } from '@ant-design/icons';
 import { addAppointment, deleteAppointment, deleteJob, updateAppointment, updateJob } from '../../redux/appointment/appointment.actions';
 import { createPeriodObject, verifyAppointmentDisponibility } from '../../utils/periods';
-import { Button } from 'antd';
+import { Button, Input } from 'antd';
 
 import './Home.styles.scss';
-import { Grid } from '@material-ui/core';
+import { Button as MaterialButton, Grid } from '@material-ui/core';
 import { AccessTime, Lens } from '@material-ui/icons';
 import Modal from 'antd/lib/modal/Modal';
 import Checkbox from 'antd/lib/checkbox/Checkbox';
@@ -37,6 +37,8 @@ class HomeComponent extends React.Component {
             currentDay: moment().startOf('week').toDate(),
             currentViewName: 'Day',
             appointmentUpdateInterval: null,
+            isPartitionModalVisible: false,
+            partitionHourValue: '',
             isRealocateModalVisible: false,
             realocatedState: {
                 state: '',
@@ -51,7 +53,7 @@ class HomeComponent extends React.Component {
             },
             shouldShowSleepPeriod: true,
             startDayViewHour: 0,
-            endDayViewHour: 24
+            endDayViewHour: 24,
         }
 
         this.toggleVisibility = () => {
@@ -179,6 +181,8 @@ class HomeComponent extends React.Component {
 
         const job = this.findJobOfAppointment(appointmentData);
         if (!job) { return null; }
+
+        <SplitCellsOutlined />
 
         return (
             <div className="tooltip-content">
@@ -488,6 +492,8 @@ class HomeComponent extends React.Component {
         )
     }
 
+
+
     getViewSwitcherComponent(props) {
         return <ViewSwitcher.Switcher {...props} onChange={(viewName) => this.setState({ currentViewName: viewName })}></ViewSwitcher.Switcher >
     }
@@ -541,7 +547,22 @@ class HomeComponent extends React.Component {
         }
     }
 
-    getEarliestDate
+    getHeaderComponent({ children, appointmentData, classes, ...restProps }) {
+        return (
+            <AppointmentTooltip.Header
+                {...restProps}
+                appointmentData={appointmentData}
+            >
+                <MaterialButton className="icon-button-wrapper" onClick={() => {
+                    this.setState({ isPartitionModalVisible: true })
+                    this.toggleVisibility();
+                    this.onAppointmentMetaChange();
+                }}>
+                    <SplitCellsOutlined />
+                </MaterialButton>
+            </AppointmentTooltip.Header>
+        )
+    }
 
     render() {
         return (
@@ -584,6 +605,7 @@ class HomeComponent extends React.Component {
                         <AppointmentTooltip
                             showCloseButton
                             showDeleteButton
+                            headerComponent={this.getHeaderComponent.bind(this)}
                             visible={this.state.isAppointmentTooltipVisible}
                             appointmentMeta={this.state.appointmentTooltipMetadata}
                             onAppointmentMetaChange={this.onAppointmentMetaChange}
@@ -623,6 +645,25 @@ class HomeComponent extends React.Component {
                         null
                 }
 
+
+                {
+                    this.state.isPartitionModalVisible
+                        ?
+                        <Modal
+                            visible={this.state.isPartitionModalVisible}
+                            onOk={() => this.onConfirmationOfRealocation()}
+                        >
+                            <Input
+                                placeholder="XX"
+                                type="number"
+                                value={this.state.partitionHourValue}
+                                prefix={<FieldTimeOutlined />}
+                                suffix={'Hours'}
+                                onChange={(event) => this.setState({ partitionHourValue: event.target.value })} />
+                        </Modal>
+                        :
+                        null
+                }
             </div>
         )
     }

@@ -137,6 +137,19 @@
     }
 }
 
+.icon-button-wrapper {
+    height: 48px !important;
+    width: 48px !important;
+    min-width: unset !important;
+    border-radius: 100% !important;
+
+    svg {
+        height: 24px;
+        width: 24px;
+        color: gray;
+    }
+}
+
 .toolbar-flexible-space {
     display: flex;
     flex: 1 !important;
