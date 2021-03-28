@@ -516,6 +516,9 @@ class HomeComponent extends React.Component {
         deleteAppointment([appointment.id]);
         addAppointments(newAppointments);
         updateJob(job);
+
+
+        this.setState({ partitionAppointmentData: null });
     }
 
     validateHourInserted(_, hours) {
@@ -721,9 +724,11 @@ class HomeComponent extends React.Component {
                                 this.partitionForm.current.validateFields()
                                     .then(values => {
                                         this.onAppointmentPartitionSet(values);
+                                        this.setState({ isPartitionModalVisible: false })
                                     })
                                     .catch(info => {
                                         console.log('Validate Failed:', info);
+                                        this.setState({ isPartitionModalVisible: false })
                                     });
                             }}
                             onCancel={() => this.setState({ isPartitionModalVisible: false })}
