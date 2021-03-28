@@ -67,7 +67,7 @@ export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, curren
     }
 }
 
-export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, dueDate, appointments, hoursNeeded, startDate, getAllPeriods = false) {
+export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, dueDate, appointments, hoursNeeded, startDate, getAllPeriods = false, maxPeriodHours = 0) {
     const allContinuousPeriods = [];
 
     // console.log("startDate", startDate);
@@ -100,6 +100,20 @@ export function getAllVacatedSpacesInPeriodUntilDueDate(periodStart, periodEnd, 
         // console.log('currentContinuousPeriod', Object.assign({}, currentContinuousPeriod))
         /*  Check if the periods already obtained already are enough for the appointment, so theres no 
             to continue the while loop*/
+        if (maxPeriodHours !== 0 && currentContinuousPeriod.hours + 1 >= maxPeriodHours) {
+            currentContinuousPeriod.end = currentTimestamp.clone();
+            currentContinuousPeriod.hours++;
+
+            allContinuousPeriods.push(Object.assign({}, currentContinuousPeriod));
+            currentContinuousPeriod = {
+                start: null,
+                end: null,
+                hours: 0
+            }
+
+            continue;
+        }
+
         if (!getAllPeriods && hoursNeeded != 0) {
             if (currentContinuousPeriod.start) {
                 if (getTotalHoursOfPeriods([...allContinuousPeriods, { hours: 1 + currentContinuousPeriod.hours }]) >= hoursNeeded) {

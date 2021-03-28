@@ -20,8 +20,8 @@ import moment from 'moment';
 import { APPOINTMENT_STATE_COMPLETED, APPOINTMENT_STATE_CURRENT, APPOINTMENT_STATE_DELAY, APPOINTMENT_STATE_LATE, APPOINTMENT_STATE_TO_DO, JOB_COMPLETED, JOB_NOT_STARTED, JOB_ON_GOING, SCHEDULE_FREE_TIME, SCHEDULE_FULL } from '../../utils/constants';
 import { FieldTimeOutlined, DoubleRightOutlined, CheckCircleOutlined, ExclamationCircleOutlined, DoubleLeftOutlined, LeftOutlined, RightOutlined, SplitCellsOutlined } from '@ant-design/icons';
 import { addAppointment, deleteAppointment, deleteJob, updateAppointment, updateJob } from '../../redux/appointment/appointment.actions';
-import { createPeriodObject, verifyAppointmentDisponibility } from '../../utils/periods';
-import { Button, Input } from 'antd';
+import { createPeriodObject, getAllVacatedSpacesInPeriodUntilDueDate, verifyAppointmentDisponibility } from '../../utils/periods';
+import { Button, Form, Input } from 'antd';
 
 import './Home.styles.scss';
 import { Button as MaterialButton, Grid } from '@material-ui/core';
@@ -30,6 +30,8 @@ import Modal from 'antd/lib/modal/Modal';
 import Checkbox from 'antd/lib/checkbox/Checkbox';
 
 class HomeComponent extends React.Component {
+    partitionForm = React.createRef();
+
     constructor(props) {
         super(props);
 
@@ -38,6 +40,7 @@ class HomeComponent extends React.Component {
             currentViewName: 'Day',
             appointmentUpdateInterval: null,
             isPartitionModalVisible: false,
+            partitionAppointmentData: null,
             partitionHourValue: '',
             isRealocateModalVisible: false,
             realocatedState: {
@@ -472,6 +475,71 @@ class HomeComponent extends React.Component {
         }
     }
 
+    onAppointmentPartitionSet({ hour }) {
+        const { appointments, deleteAppointment, updateJob, addAppointments } = this.props;
+
+        const appointment = this.state.partitionAppointmentData;
+
+        const modifiedAppointments = appointments.slice();
+        modifiedAppointments.splice(modifiedAppointments.findIndex(appo => appo.id === appointment.id), 1);
+        const job = this.findJobOfAppointment(appointment);
+
+        const newPeriods = getAllVacatedSpacesInPeriodUntilDueDate(
+            appointment.startDate.get('hour'),
+            appointment.endDate.get('hour'),
+            appointment.endDate,
+            modifiedAppointments,
+            0,
+            appointment.startDate,
+            false,
+            hour
+        )
+
+        let newAppointments = newPeriods.map(period => createPeriodObject(period, job.id));
+        job.appointments.splice(job.appointments.findIndex(appo => appo === appointment.id), 1);
+        job.appointments.push(...newAppointments.map(newAppo => newAppo.id));
+
+        console.log(job);
+
+        newAppointments = newAppointments.map(newAppointment => {
+            const currentState = this.checkStateOfAppointment(newAppointment);
+
+            if (newAppointment.state !== currentState) {
+                newAppointment.state = currentState;
+            }
+
+            return newAppointment
+        })
+
+        console.log(newAppointments);
+
+        deleteAppointment([appointment.id]);
+        addAppointments(newAppointments);
+        updateJob(job);
+    }
+
+    validateHourInserted(_, hours) {
+        if (!hours) {
+            return Promise.resolve();
+        }
+
+        try {
+            parseInt(hours, 10);
+        } catch (e) {
+            return Promise.reject('The hours value need to be a number!')
+        }
+
+        if (this.state.partitionAppointmentData.hours <= hours) {
+            return Promise.reject('You can\'t partition an appointment by the same or higher number of hours!')
+        }
+
+        if (hours <= 0) {
+            return Promise.reject('The number of hour should be non-negative and non-zero!')
+        }
+
+        return Promise.resolve();
+    }
+
     getToolbarFreeSpaceComponent() {
         return (
             <Toolbar.FlexibleSpace className="toolbar-flexible-space" >
@@ -491,8 +559,6 @@ class HomeComponent extends React.Component {
             </Toolbar.FlexibleSpace>
         )
     }
-
-
 
     getViewSwitcherComponent(props) {
         return <ViewSwitcher.Switcher {...props} onChange={(viewName) => this.setState({ currentViewName: viewName })}></ViewSwitcher.Switcher >
@@ -554,7 +620,7 @@ class HomeComponent extends React.Component {
                 appointmentData={appointmentData}
             >
                 <MaterialButton className="icon-button-wrapper" onClick={() => {
-                    this.setState({ isPartitionModalVisible: true })
+                    this.setState({ isPartitionModalVisible: true, partitionAppointmentData: appointmentData })
                     this.toggleVisibility();
                     this.onAppointmentMetaChange();
                 }}>
@@ -651,15 +717,39 @@ class HomeComponent extends React.Component {
                         ?
                         <Modal
                             visible={this.state.isPartitionModalVisible}
-                            onOk={() => this.onConfirmationOfRealocation()}
+                            onOk={() => {
+                                this.partitionForm.current.validateFields()
+                                    .then(values => {
+                                        this.onAppointmentPartitionSet(values);
+                                    })
+                                    .catch(info => {
+                                        console.log('Validate Failed:', info);
+                                    });
+                            }}
+                            onCancel={() => this.setState({ isPartitionModalVisible: false })}
+                            className="hour-splitter-modal"
                         >
-                            <Input
-                                placeholder="XX"
-                                type="number"
-                                value={this.state.partitionHourValue}
-                                prefix={<FieldTimeOutlined />}
-                                suffix={'Hours'}
-                                onChange={(event) => this.setState({ partitionHourValue: event.target.value })} />
+                            <h2>Appointment Partition Tool</h2>
+                            <p>Input the number of maximum number of hours that each partition of this appointment should have,
+                                the Scheduler will divide the appointment by the hour inputted </p>
+                            <Form
+                                ref={this.partitionForm}
+                                name="partitionForm"
+                            >
+                                <Form.Item
+                                    name="hour"
+                                    rules={[{ required: true, message: 'You need to input a number of hours!' }, { validator: this.validateHourInserted.bind(this) }]}
+                                >
+                                    <Input
+                                        placeholder="XX"
+                                        type="number"
+                                        prefix={<FieldTimeOutlined />}
+                                        suffix={'Hours'}
+                                    />
+                                </Form.Item>
+
+                            </Form>
+
                         </Modal>
                         :
                         null
