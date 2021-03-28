@@ -1,26 +1,26 @@
 {
   "files": {
-    "main.css": "/work-time-scheduler/static/css/main.5c2a7061.chunk.css",
-    "main.js": "/work-time-scheduler/static/js/main.eb39ef1d.chunk.js",
-    "main.js.map": "/work-time-scheduler/static/js/main.eb39ef1d.chunk.js.map",
-    "runtime-main.js": "/work-time-scheduler/static/js/runtime-main.52c9b7e4.js",
-    "runtime-main.js.map": "/work-time-scheduler/static/js/runtime-main.52c9b7e4.js.map",
+    "main.css": "/work-time-scheduler/static/css/main.ef6290b2.chunk.css",
+    "main.js": "/work-time-scheduler/static/js/main.217c6ca7.chunk.js",
+    "main.js.map": "/work-time-scheduler/static/js/main.217c6ca7.chunk.js.map",
+    "runtime-main.js": "/work-time-scheduler/static/js/runtime-main.1e049158.js",
+    "runtime-main.js.map": "/work-time-scheduler/static/js/runtime-main.1e049158.js.map",
     "static/css/2.1e58ee36.chunk.css": "/work-time-scheduler/static/css/2.1e58ee36.chunk.css",
-    "static/js/2.9ee83ce4.chunk.js": "/work-time-scheduler/static/js/2.9ee83ce4.chunk.js",
-    "static/js/2.9ee83ce4.chunk.js.map": "/work-time-scheduler/static/js/2.9ee83ce4.chunk.js.map",
-    "static/js/3.5dc68ded.chunk.js": "/work-time-scheduler/static/js/3.5dc68ded.chunk.js",
-    "static/js/3.5dc68ded.chunk.js.map": "/work-time-scheduler/static/js/3.5dc68ded.chunk.js.map",
+    "static/js/2.f1124fd7.chunk.js": "/work-time-scheduler/static/js/2.f1124fd7.chunk.js",
+    "static/js/2.f1124fd7.chunk.js.map": "/work-time-scheduler/static/js/2.f1124fd7.chunk.js.map",
+    "static/js/3.82877458.chunk.js": "/work-time-scheduler/static/js/3.82877458.chunk.js",
+    "static/js/3.82877458.chunk.js.map": "/work-time-scheduler/static/js/3.82877458.chunk.js.map",
     "index.html": "/work-time-scheduler/index.html",
     "static/css/2.1e58ee36.chunk.css.map": "/work-time-scheduler/static/css/2.1e58ee36.chunk.css.map",
-    "static/css/main.5c2a7061.chunk.css.map": "/work-time-scheduler/static/css/main.5c2a7061.chunk.css.map",
-    "static/js/2.9ee83ce4.chunk.js.LICENSE.txt": "/work-time-scheduler/static/js/2.9ee83ce4.chunk.js.LICENSE.txt",
+    "static/css/main.ef6290b2.chunk.css.map": "/work-time-scheduler/static/css/main.ef6290b2.chunk.css.map",
+    "static/js/2.f1124fd7.chunk.js.LICENSE.txt": "/work-time-scheduler/static/js/2.f1124fd7.chunk.js.LICENSE.txt",
     "static/media/logo.6ce24c58.svg": "/work-time-scheduler/static/media/logo.6ce24c58.svg"
   },
   "entrypoints": [
-    "static/js/runtime-main.52c9b7e4.js",
+    "static/js/runtime-main.1e049158.js",
     "static/css/2.1e58ee36.chunk.css",
-    "static/js/2.9ee83ce4.chunk.js",
-    "static/css/main.5c2a7061.chunk.css",
-    "static/js/main.eb39ef1d.chunk.js"
+    "static/js/2.f1124fd7.chunk.js",
+    "static/css/main.ef6290b2.chunk.css",
+    "static/js/main.217c6ca7.chunk.js"
   ]
 }
