@@ -28,6 +28,7 @@ import { Button as MaterialButton, Grid } from '@material-ui/core';
 import { AccessTime, Lens } from '@material-ui/icons';
 import Modal from 'antd/lib/modal/Modal';
 import Checkbox from 'antd/lib/checkbox/Checkbox';
+import { setShowSleepConfiguration } from '../../redux/global-configuration/configuration.actions';
 
 class HomeComponent extends React.Component {
     partitionForm = React.createRef();
@@ -54,9 +55,7 @@ class HomeComponent extends React.Component {
                 target: null,
                 data: {},
             },
-            shouldShowSleepPeriod: true,
-            startDayViewHour: 0,
-            endDayViewHour: 24,
+
         }
 
         this.toggleVisibility = () => {
@@ -499,8 +498,6 @@ class HomeComponent extends React.Component {
         job.appointments.splice(job.appointments.findIndex(appo => appo === appointment.id), 1);
         job.appointments.push(...newAppointments.map(newAppo => newAppo.id));
 
-        console.log(job);
-
         newAppointments = newAppointments.map(newAppointment => {
             const currentState = this.checkStateOfAppointment(newAppointment);
 
@@ -510,8 +507,6 @@ class HomeComponent extends React.Component {
 
             return newAppointment
         })
-
-        console.log(newAppointments);
 
         deleteAppointment([appointment.id]);
         addAppointments(newAppointments);
@@ -547,15 +542,12 @@ class HomeComponent extends React.Component {
         return (
             <Toolbar.FlexibleSpace className="toolbar-flexible-space" >
                 <Checkbox
-                    checked={this.state.shouldShowSleepPeriod}
+                    checked={this.props.showSleepPeriod}
                     onChange={(event) => {
-                        const { workStart, workEnd, freeStart, freeEnd } = this.props;
+                        const { setShowSleepPeriod } = this.props;
                         const checked = event.target.checked
-                        this.setState({
-                            shouldShowSleepPeriod: checked,
-                            startDayViewHour: checked ? 0 : Math.min(workStart, freeStart),
-                            endDayViewHour: checked ? 24 : Math.max(workEnd, freeEnd)
-                        })
+
+                        setShowSleepPeriod(checked);
                     }} >
                     Show Sleep Period
                 </Checkbox>
@@ -654,8 +646,8 @@ class HomeComponent extends React.Component {
                             displayName={'Week'}
                             cellDuration={60}
                             intervalCount={7}
-                            startDayHour={this.state.startDayViewHour}
-                            endDayHour={this.state.endDayViewHour}
+                            startDayHour={this.props.calendarViewHourStart}
+                            endDayHour={this.props.calendarViewHourEnd}
                             timeTableCellComponent={this.TableTimeCellRenderer.bind(this)}>
                         </DayView>
                         <MonthView />
@@ -769,8 +761,11 @@ const mapStateToProps = (state) => ({
     workEnd: state.period.workEnd,
     freeStart: state.period.freeStart,
     freeEnd: state.period.freeEnd,
+    calendarViewHourStart: state.period.calendarViewHourStart,
+    calendarViewHourEnd: state.period.calendarViewHourEnd,
     appointments: state.appointment.appointments,
-    jobs: state.appointment.jobs
+    jobs: state.appointment.jobs,
+    showSleepPeriod: state.config.showSleepPeriod
 })
 
 const mapDispatchToProps = dispatch => {
@@ -779,7 +774,8 @@ const mapDispatchToProps = dispatch => {
         updateAppointment: (payload) => dispatch(updateAppointment(payload)),
         deleteAppointment: (payload) => dispatch(deleteAppointment(payload)),
         updateJob: (payload) => dispatch(updateJob(payload)),
-        deleteJob: (payload) => dispatch(deleteJob(payload))
+        deleteJob: (payload) => dispatch(deleteJob(payload)),
+        setShowSleepPeriod: (payload) => dispatch(setShowSleepConfiguration(payload))
     }
 }
 
