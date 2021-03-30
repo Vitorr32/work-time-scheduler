@@ -215,9 +215,9 @@ class AppointmentForm extends React.Component {
                             label="Estimated Hours"
                             name="hours"
                             rules={[{ required: true, message: 'The ETA is required to allow the scheduler to distribute time' }]}
-                            disabled={!enabledForm}
                         >
                             <InputNumber
+                                disabled={!enabledForm}
                                 min={0} />
                         </Form.Item>
 
@@ -225,15 +225,16 @@ class AppointmentForm extends React.Component {
                             label="Due Date"
                             name="dueDate"
                             rules={[{ required: true, message: 'The dude date is required' }, { validator: this.validateDueDate }]}
-                            disabled={!enabledForm}
                         >
-                            <DatePicker format={'DD/MM/YYYY HH:00'} showTime />
+                            <DatePicker disabled={!enabledForm} format={'DD/MM/YYYY HH:00'} showTime />
                         </Form.Item >
-                        
-                        <Tooltip title="Whether the Scheduler should focus on finding continuous periods or just distribute the event in the open periods avaliable">
-                            <Form.Item label="Continuous Priority" valuePropName='checked' name="continuousPeriod">
-                                <Checkbox></Checkbox>
 
+                        <Tooltip title="Whether the Scheduler should focus on finding continuous periods or just distribute the event in the open periods avaliable">
+                            <Form.Item
+                                label="Continuous Priority"
+                                valuePropName='checked'
+                                name="continuousPeriod">
+                                <Checkbox disabled={!enabledForm}></Checkbox>
                             </Form.Item>
                         </Tooltip>
 

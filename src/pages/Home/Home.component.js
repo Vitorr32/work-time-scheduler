@@ -643,6 +643,7 @@ class HomeComponent extends React.Component {
                         <ViewState
                             currentDate={this.state.currentDay}
                             currentViewName={this.state.currentViewName}
+                            onCurrentDateChange={(date) => this.setState({ currentDay: date })}
                         />
                         <EditingState onCommitChanges={this.onAppointmentChangeCommited.bind(this)} />
 
