@@ -541,16 +541,23 @@ class HomeComponent extends React.Component {
     getToolbarFreeSpaceComponent() {
         return (
             <Toolbar.FlexibleSpace className="toolbar-flexible-space" >
-                <Checkbox
-                    checked={this.props.showSleepPeriod}
-                    onChange={(event) => {
-                        const { setShowSleepPeriod } = this.props;
-                        const checked = event.target.checked
+                {
+                    this.props.workStart !== null && this.props.freeStart !== null
+                        ?
+                        <Checkbox
+                            checked={this.props.showSleepPeriod}
+                            onChange={(event) => {
+                                const { setShowSleepPeriod } = this.props;
+                                const checked = event.target.checked
 
-                        setShowSleepPeriod(checked);
-                    }} >
-                    Show Sleep Period
-                </Checkbox>
+                                setShowSleepPeriod(checked);
+                            }} >
+                            Show Sleep Period
+                        </Checkbox>
+                        :
+                        null
+                }
+
             </Toolbar.FlexibleSpace>
         )
     }

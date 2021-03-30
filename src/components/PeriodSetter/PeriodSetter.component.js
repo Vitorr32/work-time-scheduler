@@ -91,8 +91,8 @@ const mapStateToProps = (state, ownProps) => {
     switch (ownProps.periodType) {
         case PeriodType.WORK_PERIOD:
             return {
-                start: new Number(state.period.workStart),
-                end: new Number(state.period.workEnd)
+                start: state.period.workStart,
+                end: state.period.workEnd
             }
         case PeriodType.FREE_PERIOD:
             return {

@@ -27,8 +27,8 @@ const periodReducer = (state = INITIAL_STATE, action) => {
         case configTypes.SET_SHOW_SLEEP_PERIOD_CONFIG:
             return {
                 ...state,
-                calendarViewHourStart: action.payload ? 0 : Math.min(state.workStart, state.freeStart),
-                calendarViewHourEnd: action.payload ? 24 : Math.max(state.workEnd, state.freeEnd)
+                calendarViewHourStart: action.payload ? 0 : state.workStart ? Math.min(state.workStart, state.freeStart) : 0,
+                calendarViewHourEnd: action.payload ? 24 : state.workEnd ? Math.max(state.workEnd, state.freeEnd) : 24
             }
         default:
             return state;
