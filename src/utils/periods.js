@@ -268,7 +268,7 @@ export function pickBestContinuosPeriods(periods, neededHours) {
 
     for (let i = 0; i < periods.length; i++) {
         const currentPeriod = periods[i];
-        if (currentPeriod === remainingHours) {
+        if (currentPeriod.hours === remainingHours) {
             currentPeriods.push(currentPeriod);
             break;
         }
