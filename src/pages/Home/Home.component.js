@@ -55,7 +55,8 @@ class HomeComponent extends React.Component {
                 target: null,
                 data: {},
             },
-
+            isMergeModalVisible: false,
+            mergeState: null
         }
 
         this.toggleVisibility = () => {
@@ -452,6 +453,7 @@ class HomeComponent extends React.Component {
         }
 
         if (props.changed) {
+            console.log(props);
             Object.keys(props.changed).forEach(changedId => {
                 const { endDate, startDate } = props.changed[changedId];
 
@@ -465,9 +467,37 @@ class HomeComponent extends React.Component {
                     newEndDate = newStartDate.clone().set('hour', this.props.workStart + appointment.hours);
                 }
 
+                const collidedAppointmentOfSameJob = appointments.find(appo => {
+                    if (newStartDate.isBetween(appo.startDate, appo.endDate) ||
+                        newEndDate.isBetween(appo.startDate, appo.endDate)) {
+                        return appo.jobId === appointment.jobId;
+                    }
+
+                    return false;
+                })
+
+                //Check if the appointment collided with another with the same job, so to trigger the merge popup
+                if (collidedAppointmentOfSameJob) {
+                    this.setState({
+                        isMergeModalVisible: true,
+                        mergeState: {
+                            collidedAppointment: collidedAppointmentOfSameJob,
+                            appointment,
+                            updatedAppointment: {
+                                ...appointment,
+                                startDate: newStartDate,
+                                endDate: newEndDate,
+                                state: this.checkStateOfAppointment(appointment)
+                            },
+                            job: this.findJobOfAppointment(appointment)
+                        }
+                    })
+                    return;
+                }
+
                 appointment.startDate = newStartDate;
                 appointment.endDate = newEndDate;
-                appointment.state = this.checkStateOfAppointment(appointment)
+                appointment.state = this.checkStateOfAppointment(appointment);
 
                 this.props.updateAppointment(appointment);
             })
@@ -514,6 +544,24 @@ class HomeComponent extends React.Component {
 
 
         this.setState({ partitionAppointmentData: null });
+    }
+
+    onAppointmentMerge({ collidedAppointment, appointment, updatedAppointment, job }, merge) {
+        const { deleteAppointment, updateAppointment } = this.props;
+
+        if (merge) {
+            job.appointments.splice(job.appointments.findIndex(appo => appo === appointment.id), 1);
+            collidedAppointment.hours += appointment.hours;
+            collidedAppointment.endDate.add(appointment.hours, 'hours');
+
+            deleteAppointment([appointment.id]);
+            updateAppointment(collidedAppointment);
+            updateJob(job);
+        } else {
+            updateAppointment(updatedAppointment);
+        }
+
+        this.setState({ isMergeModalVisible: false, mergeState: null });
     }
 
     validateHourInserted(_, hours) {
@@ -714,6 +762,30 @@ class HomeComponent extends React.Component {
                         null
                 }
 
+                <Modal
+                    visible={this.state.isMergeModalVisible}
+                    footer={[
+                        <Button key="cancel" onClick={() => this.setState({ isMergeModalVisible: false, mergeState: null })}>
+                            Cancel
+                        </Button>,
+                        <Button key="merge" type="primary" onClick={() => this.onAppointmentMerge(this.state.mergeState, true)}>
+                            Merge
+                        </Button>,
+                        <Button key="ignore" type="primary" onClick={() => this.onAppointmentMerge(this.state.mergeState, false)} >
+                            Ignore
+                        </Button>
+                    ]}>
+                    <h2>Appointment Merging</h2>
+                    <p style={{ marginTop: '20px' }}>
+                        {
+                            `
+                            The appointment that you dragged is overlapping with another appointment of the same job.
+                            You can press 'Merge' to merge both appointment into one, press 'Ignore' to apply the drag but not merge
+                            or 'Cancel' to abort the operation
+                            `
+                        }
+                    </p>
+                </Modal>
 
                 {
                     this.state.isPartitionModalVisible
