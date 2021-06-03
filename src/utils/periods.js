@@ -8,8 +8,6 @@ export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, curren
         return;
     }
 
-    console.log("continuosPeriodPriorization", continuosPeriodPriorization)
-
     const vacatedWorkPeriods = pickBestContinuosPeriods(getAllVacatedSpacesInPeriodUntilDueDate(
         workStart,
         workEnd,
@@ -260,7 +258,15 @@ export function pickBestContinuosPeriods(periods, neededHours) {
 
     //Sort the periods by hours and then by earliest
     periods.sort((a, b) =>
-        (a.hours > b.hours) ? -1 : (b.hours > a.hours) ? 1 : a.start.isBefore(b.start) ? -1 : a.start.isBefore(b.start) ? 1 : 0
+        (a.hours > b.hours || a.hours === neededHours)
+            ? -1
+            : (b.hours > a.hours)
+                ? 1
+                : a.start.isBefore(b.start)
+                    ? -1
+                    : b.start.isBefore(a.start)
+                        ? 1
+                        : 0
     );
 
     let remainingHours = neededHours;

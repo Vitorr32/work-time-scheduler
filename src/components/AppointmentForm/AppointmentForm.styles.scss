@@ -1,0 +1,14 @@
+.due-date-wrapper {
+    position: relative;
+
+    .due-date-toogle {
+        position: absolute;
+        right: 0px;
+        top: calc(50% - 10px);
+
+        svg {
+            height: 20px;
+            width: 20px;
+        }
+    }
+}

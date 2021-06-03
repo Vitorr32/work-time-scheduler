@@ -765,7 +765,7 @@ class HomeComponent extends React.Component {
                 <Modal
                     visible={this.state.isMergeModalVisible}
                     footer={[
-                        <Button key="cancel" onClick={() => this.setState({ isMergeModalVisible: false, mergeState: null })}>
+                        <Button key="cancel" className="cancel" onClick={() => this.setState({ isMergeModalVisible: false, mergeState: null })}>
                             Cancel
                         </Button>,
                         <Button key="merge" type="primary" onClick={() => this.onAppointmentMerge(this.state.mergeState, true)}>
@@ -774,16 +774,19 @@ class HomeComponent extends React.Component {
                         <Button key="ignore" type="primary" onClick={() => this.onAppointmentMerge(this.state.mergeState, false)} >
                             Ignore
                         </Button>
-                    ]}>
+                    ]}
+                    onCancel={() => this.setState({ isMergeModalVisible: false, mergeState: null })}
+                    className="merge-modal">
                     <h2>Appointment Merging</h2>
                     <p style={{ marginTop: '20px' }}>
-                        {
-                            `
-                            The appointment that you dragged is overlapping with another appointment of the same job.
-                            You can press 'Merge' to merge both appointment into one, press 'Ignore' to apply the drag but not merge
-                            or 'Cancel' to abort the operation
-                            `
-                        }
+                        The appointment that you dragged is overlapping with another appointment of the same job.
+                        <br/>
+                        <br/>
+                        You can press 'Merge' to merge both appointment into one, press 'Ignore' to apply the drag but not merge
+                        or 'Cancel' to abort the operation.
+                        <br/>
+                        <br/>
+                        You can separate the merged appointment again by using the partition tool that is avaliable at the appointment options.
                     </p>
                 </Modal>
 
