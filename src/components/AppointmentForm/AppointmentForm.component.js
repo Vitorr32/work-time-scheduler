@@ -29,7 +29,8 @@ class AppointmentForm extends React.Component {
             appointmentPreview: null,
             appointmentPeriods: [],
             appointmentSuccessful: false,
-            showTimeToDueDateInputField: false
+            showTimeToDueDateInputField: false,
+            showSpecificDateInput: false,
         }
     }
 
@@ -41,7 +42,8 @@ class AppointmentForm extends React.Component {
             appointmentPreview: null,
             appointmentPeriods: [],
             appointmentSuccessful: false,
-            showTimeToDueDateInputField: false
+            showTimeToDueDateInputField: false,
+            showSpecificDateInput: false,
         })
     }
 
@@ -70,6 +72,10 @@ class AppointmentForm extends React.Component {
 
         this.resetFormState();
         this.formRef.current.resetFields();
+    }
+
+    onCreateRecurrentAppointment(id) {
+        
     }
 
     previewPeriods([lastChange], values) {
@@ -274,41 +280,44 @@ class AppointmentForm extends React.Component {
                                     <Form.Item
                                         label="Recurrency Frequency">
                                         <Input.Group compact>
-                                            <Form.Item
-                                                name={'recurrentPeriod'}
-                                                noStyle
-                                                rules={[{ required: true, message: 'The period value is required' }]}
-                                            >
-                                                <InputNumber style={{ width: '50%' }} placeholder="Period value" />
-                                            </Form.Item>
+                                            {
+                                                this.state.showSpecificDateInput
+                                                    ?
+                                                    <Form.Item
+                                                        name={'recurrentPeriod'}
+                                                        noStyle
+                                                        rules={[{ required: true, message: 'The period value is required' }]}
+                                                    >
+                                                        <DatePicker disabled={!enabledForm} style={{ width: '50%' }} format={'DD/MM/YYYY HH:00'} showTime />
+                                                    </Form.Item>
+                                                    :
+                                                    <Form.Item
+                                                        name={'recurrentEndDate'}
+                                                        noStyle
+                                                        rules={[{ required: true, message: 'The period value is required' }]}
+                                                    >
+                                                        <InputNumber disabled={!enabledForm} style={{ width: '50%' }} placeholder="Period value" />
+                                                    </Form.Item>
+                                            }
                                             <Form.Item
                                                 name={'recurrentTimeFrame'}
                                                 noStyle
                                                 rules={[{ required: true, message: 'Please select the time frame to be used' }]}
                                             >
-                                                <Select style={{ width: '50%' }} placeholder="Time frame">
+                                                <Select
+                                                    style={{ width: '50%' }}
+                                                    disabled={!enabledForm}
+                                                    placeholder="Time frame"
+                                                    onChange={(value) => this.setState({ showSpecificDateInput: value === 'date' })}>
                                                     <Select.Option value="day">Week(s)</Select.Option>
                                                     <Select.Option value="month">Month(s)</Select.Option>
                                                     <Select.Option value="quarter">Quarter(s)</Select.Option>
                                                     <Select.Option value="semester">Semester(s)</Select.Option>
                                                     <Select.Option value="year">Year(s)</Select.Option>
+                                                    <Select.Option value="date">Specifc Date</Select.Option>
                                                 </Select>
                                             </Form.Item>
                                         </Input.Group>
-                                        {/* 
-
-                                        TODO: Add the specific target date to the recurrent event
-                                        <Radio.Group
-                                            options={[
-                                                { label: 'Daily', value: 'day' },
-                                                { label: 'Weekly', value: 'week' },
-                                                { label: 'Fortnightly', value: 'fortnight' },
-                                                { label: 'Monthly', value: 'monthly' },
-                                                { label: 'Quarterly ', value: 'quarterly' }
-                                            ]}
-                                            value={value3}
-                                            optionType="button"
-                                        /> */}
                                     </Form.Item>
 
                                     <span className="message">
