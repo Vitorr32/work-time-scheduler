@@ -5,7 +5,7 @@ import { addAppointment, addJob } from '../../redux/appointment/appointment.acti
 import moment from 'moment';
 
 import './AppointmentForm.styles.scss';
-import { JOB_NOT_STARTED, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
+import { JOB_IS_RECURRENT_EVENT, JOB_NOT_STARTED, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
 import { CoffeeOutlined, FieldTimeOutlined, HourglassOutlined } from '@ant-design/icons';
 import { createPeriodObject, getAllVacatedSpacesInPeriodUntilDueDate, getTotalHoursOfPeriods, mergeContinousAppointmentsInDifferentPeriods, verifyAppointmentDisponibility } from '../../utils/periods';
 
@@ -50,6 +50,39 @@ class AppointmentForm extends React.Component {
     onFormSubmit(values) {
         const newJobId = moment().format('x');
 
+        if (values.recurrentEvent) {
+            this.onCreateRecurrentAppointment(newJobId, values);
+        } else {
+            this.onCreateJob(newJobId, values);
+        }
+
+        this.resetFormState();
+        this.formRef.current.resetFields();
+    }
+
+    onCreateRecurrentAppointment(newJobId, { description, name, recurrentEndDate, recurrentPeriod, recurrentTimeFrame, weekDay: weeksDay, recurrentEventTime }) {
+        const startHour = recurrentEventTime[0].get('hour');
+        const endHour = recurrentEventTime[1].get('hour');
+        const endDate = recurrentTimeFrame === 'date'
+            ? recurrentEndDate
+            : moment().startOf('day').add(recurrentPeriod, recurrentTimeFrame).set('hour', endHour)
+        const appointmentsToCreate = this.createAppointmentsOfRecurrentJob(startHour, endHour, endDate, weeksDay)
+
+        const newJob = {
+            id: newJobId,
+            name: name,
+            appointments: appointmentsToCreate.map(appointment => appointment.id),
+            description: description,
+            dueDate: endDate,
+            state: JOB_IS_RECURRENT_EVENT,
+            recurrentEvent: true
+        }
+
+        // this.props.addJob(newJob);
+        // this.props.addAppointments(appointmentsToCreate);
+    }
+
+    onCreateJob(newJobId, values) {
         const appointmentsToCreate = this.state.appointmentPeriods.map((period) => createPeriodObject(period, newJobId))
 
         const newJob = {
@@ -64,22 +97,36 @@ class AppointmentForm extends React.Component {
                     ? moment().add(values.period, values.timeFrame).startOf('hour')
                     : null,
             totalHours: values.hours,
-            state: JOB_NOT_STARTED
+            state: JOB_NOT_STARTED,
+            recurrentEvent: false
         }
 
         this.props.addJob(newJob);
         this.props.addAppointments(appointmentsToCreate);
-
-        this.resetFormState();
-        this.formRef.current.resetFields();
     }
 
-    onCreateRecurrentAppointment(id) {
-        
+    createAppointmentsOfRecurrentJob(startHour, endHour, finalDate, weekDays) {
+        const iteratedDay = moment().startOf('day');
+        const createdAppointments = [];
+
+        while (iteratedDay.isSameOrBefore(finalDate)) {
+            if (weekDays.includes(iteratedDay.isoWeekday())) {
+                console.log("Is week of the day", iteratedDay.isoWeekday());
+            }
+
+            createdAppointments.push({
+                start: iteratedDay.clone().set('hour', startHour),
+                end: iteratedDay.clone().set('hour', endHour),
+                hours: endHour - startHour
+            })
+
+            iteratedDay.add('day', 1);
+        }
+
+        return createdAppointments;
     }
 
     previewPeriods([lastChange], values) {
-        console.log(values);
         const recurrentEvent = values.find(inputData => inputData.name.includes('recurrentEvent'));
         //No need to set the appointments preview to an recurrent event
         if (recurrentEvent.value) {
@@ -203,7 +250,7 @@ class AppointmentForm extends React.Component {
                     onOk={() => {
                         this.formRef.current.validateFields()
                             .then(values => {
-                                if (this.state.appointmentSuccessful) {
+                                if (this.state.appointmentSuccessful || this.state.isRecurrentEvent) {
                                     this.onFormSubmit(values);
                                 } else {
                                     this.setState({ isFutherActionModalVisible: true })
@@ -266,13 +313,13 @@ class AppointmentForm extends React.Component {
                                         rules={[{ required: true, message: 'At least one day must be selected for the event to happen!' }]}>
                                         <Checkbox.Group
                                             options={[
-                                                { label: 'Monday', value: 'monday' },
-                                                { label: 'Tuesday', value: 'tuesday' },
-                                                { label: 'Wednesday', value: 'wednesday' },
-                                                { label: 'Thursday', value: 'thursday' },
-                                                { label: 'Friday', value: 'friday' },
-                                                { label: 'Saturday', value: 'saturday' },
-                                                { label: 'Sunday', value: 'sunday' }
+                                                { label: 'Monday', value: 1 },
+                                                { label: 'Tuesday', value: 2 },
+                                                { label: 'Wednesday', value: 3 },
+                                                { label: 'Thursday', value: 4 },
+                                                { label: 'Friday', value: 5 },
+                                                { label: 'Saturday', value: 6 },
+                                                { label: 'Sunday', value: 7 }
                                             ]}
                                         />
                                     </Form.Item>
@@ -284,7 +331,7 @@ class AppointmentForm extends React.Component {
                                                 this.state.showSpecificDateInput
                                                     ?
                                                     <Form.Item
-                                                        name={'recurrentPeriod'}
+                                                        name={'recurrentEndDate'}
                                                         noStyle
                                                         rules={[{ required: true, message: 'The period value is required' }]}
                                                     >
@@ -292,7 +339,7 @@ class AppointmentForm extends React.Component {
                                                     </Form.Item>
                                                     :
                                                     <Form.Item
-                                                        name={'recurrentEndDate'}
+                                                        name={'recurrentPeriod'}
                                                         noStyle
                                                         rules={[{ required: true, message: 'The period value is required' }]}
                                                     >
