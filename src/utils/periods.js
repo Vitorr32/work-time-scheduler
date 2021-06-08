@@ -1,4 +1,4 @@
-import { APPOINTMENT_STATE_TO_DO, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from "./constants";
+import { APPOINTMENT_STATE_FIXED, APPOINTMENT_STATE_TO_DO, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from "./constants";
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 
@@ -300,11 +300,11 @@ export function getTotalHoursOfPeriods(periods) {
     return periods.reduce((sum, period) => ({ hours: sum.hours + period.hours }), { hours: 0 }).hours;
 }
 
-export function createPeriodObject({ start, end, hours }, jobId) {
+export function createPeriodObject({ start, end, hours }, jobId, isRecurrent = false) {
     return {
         startDate: start,
         endDate: end,
-        state: APPOINTMENT_STATE_TO_DO,
+        state: isRecurrent ? APPOINTMENT_STATE_FIXED : APPOINTMENT_STATE_TO_DO,
         hours: hours,
         id: 'job_' + jobId + '_app_' + uuidv4(),
         jobId: jobId

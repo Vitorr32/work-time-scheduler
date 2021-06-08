@@ -60,13 +60,13 @@ class AppointmentForm extends React.Component {
         this.formRef.current.resetFields();
     }
 
-    onCreateRecurrentAppointment(newJobId, { description, name, recurrentEndDate, recurrentPeriod, recurrentTimeFrame, weekDay: weeksDay, recurrentEventTime }) {
+    onCreateRecurrentAppointment(newJobId, { description, name, recurrentEndDate, recurrentPeriod, recurrentTimeFrame, weekDay, recurrentEventTime }) {
         const startHour = recurrentEventTime[0].get('hour');
         const endHour = recurrentEventTime[1].get('hour');
         const endDate = recurrentTimeFrame === 'date'
             ? recurrentEndDate
             : moment().startOf('day').add(recurrentPeriod, recurrentTimeFrame).set('hour', endHour)
-        const appointmentsToCreate = this.createAppointmentsOfRecurrentJob(startHour, endHour, endDate, weeksDay)
+        const appointmentsToCreate = this.createAppointmentsOfRecurrentJob(startHour, endHour, endDate, weekDay, newJobId)
 
         const newJob = {
             id: newJobId,
@@ -75,11 +75,12 @@ class AppointmentForm extends React.Component {
             description: description,
             dueDate: endDate,
             state: JOB_IS_RECURRENT_EVENT,
-            recurrentEvent: true
+            recurrentEvent: true,
+            weekDay
         }
 
-        // this.props.addJob(newJob);
-        // this.props.addAppointments(appointmentsToCreate);
+        this.props.addJob(newJob);
+        this.props.addAppointments(appointmentsToCreate);
     }
 
     onCreateJob(newJobId, values) {
@@ -105,22 +106,24 @@ class AppointmentForm extends React.Component {
         this.props.addAppointments(appointmentsToCreate);
     }
 
-    createAppointmentsOfRecurrentJob(startHour, endHour, finalDate, weekDays) {
+    createAppointmentsOfRecurrentJob(startHour, endHour, finalDate, weekDays, jobId) {
         const iteratedDay = moment().startOf('day');
         const createdAppointments = [];
 
         while (iteratedDay.isSameOrBefore(finalDate)) {
             if (weekDays.includes(iteratedDay.isoWeekday())) {
-                console.log("Is week of the day", iteratedDay.isoWeekday());
+                createdAppointments.push(createPeriodObject(
+                    {
+                        start: iteratedDay.clone().set('hour', startHour),
+                        end: iteratedDay.clone().set('hour', endHour),
+                        hours: endHour - startHour
+                    },
+                    jobId,
+                    true
+                ))
             }
 
-            createdAppointments.push({
-                start: iteratedDay.clone().set('hour', startHour),
-                end: iteratedDay.clone().set('hour', endHour),
-                hours: endHour - startHour
-            })
-
-            iteratedDay.add('day', 1);
+            iteratedDay.add(1, 'day');
         }
 
         return createdAppointments;
@@ -237,8 +240,6 @@ class AppointmentForm extends React.Component {
     render() {
         const enabledForm = this.allowFormToBeSubmitted();
 
-        console.log(this.formRef);
-
         return (
             <React.Fragment>
                 <Button type="primary" onClick={() => this.setState({ isModalVisible: true })}>Add Event</Button>
@@ -325,7 +326,7 @@ class AppointmentForm extends React.Component {
                                     </Form.Item>
 
                                     <Form.Item
-                                        label="Recurrency Frequency">
+                                        label="Recurrency Duration">
                                         <Input.Group compact>
                                             {
                                                 this.state.showSpecificDateInput
@@ -356,10 +357,9 @@ class AppointmentForm extends React.Component {
                                                     disabled={!enabledForm}
                                                     placeholder="Time frame"
                                                     onChange={(value) => this.setState({ showSpecificDateInput: value === 'date' })}>
-                                                    <Select.Option value="day">Week(s)</Select.Option>
+                                                    <Select.Option value="week">Week(s)</Select.Option>
                                                     <Select.Option value="month">Month(s)</Select.Option>
                                                     <Select.Option value="quarter">Quarter(s)</Select.Option>
-                                                    <Select.Option value="semester">Semester(s)</Select.Option>
                                                     <Select.Option value="year">Year(s)</Select.Option>
                                                     <Select.Option value="date">Specifc Date</Select.Option>
                                                 </Select>

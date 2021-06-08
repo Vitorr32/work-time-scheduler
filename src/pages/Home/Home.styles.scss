@@ -41,6 +41,8 @@
         .title {
             font-weight: bold;
             font-size: 18px;
+            line-height: 20px;
+            white-space: normal;
         }
 
         .value-wrapper {
@@ -61,6 +63,15 @@
 
     .appointment-active {
         background-color: green;
+    }
+
+    .appointment-fixed {
+        background-color: white;
+        border: 1px solid #039be5;
+
+        .title, span {
+            color: #039be5;
+        }
     }
 
     .appointment-late {

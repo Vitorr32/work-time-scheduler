@@ -17,7 +17,7 @@ import {
 import { Header } from '../../components/Header/Header.component';
 import { connect } from 'react-redux';
 import moment from 'moment';
-import { APPOINTMENT_STATE_COMPLETED, APPOINTMENT_STATE_CURRENT, APPOINTMENT_STATE_DELAY, APPOINTMENT_STATE_LATE, APPOINTMENT_STATE_TO_DO, JOB_COMPLETED, JOB_NOT_STARTED, JOB_ON_GOING, SCHEDULE_FREE_TIME, SCHEDULE_FULL } from '../../utils/constants';
+import { APPOINTMENT_STATE_COMPLETED, APPOINTMENT_STATE_CURRENT, APPOINTMENT_STATE_DELAY, APPOINTMENT_STATE_FIXED, APPOINTMENT_STATE_LATE, APPOINTMENT_STATE_TO_DO, JOB_COMPLETED, JOB_NOT_STARTED, JOB_ON_GOING, SCHEDULE_FREE_TIME, SCHEDULE_FULL } from '../../utils/constants';
 import { FieldTimeOutlined, DoubleRightOutlined, CheckCircleOutlined, ExclamationCircleOutlined, DoubleLeftOutlined, LeftOutlined, RightOutlined, SplitCellsOutlined } from '@ant-design/icons';
 import { addAppointment, deleteAppointment, deleteJob, updateAppointment, updateJob } from '../../redux/appointment/appointment.actions';
 import { createPeriodObject, getAllVacatedSpacesInPeriodUntilDueDate, verifyAppointmentDisponibility } from '../../utils/periods';
@@ -107,6 +107,11 @@ class HomeComponent extends React.Component {
             return APPOINTMENT_STATE_COMPLETED;
         }
 
+        //Fixed appointments are not supposed to change in any circustance
+        if (appointment.state === APPOINTMENT_STATE_FIXED) {
+            return APPOINTMENT_STATE_FIXED;
+        }
+
         const job = this.findJobOfAppointment(appointment);
         if (appointment.startDate.isAfter(job.dueDate)) {
             return APPOINTMENT_STATE_DELAY
@@ -168,7 +173,11 @@ class HomeComponent extends React.Component {
                             ? <div className="value-wrapper">$ {job.price.toFixed(2)}</div>
                             : null
                     }
-                    <span>Due to: {job.dueDate.format('DD/MM/YYYY HH:00')}</span>
+                    {
+                        data.state !== APPOINTMENT_STATE_FIXED
+                            ? <span>Due to: {job.dueDate.format('DD/MM/YYYY HH:00')}</span>
+                            : null
+                    }
                     <div className="hour-wrapper">
                         <span>{formatDate(data.startDate, { hour: 'numeric', minute: 'numeric' })}</span>
                         <span style={{ padding: "0px 3px" }}> - </span>
@@ -194,13 +203,15 @@ class HomeComponent extends React.Component {
                         <Lens className="lens" style={{
                             color: appointmentData.state === APPOINTMENT_STATE_TO_DO
                                 ? '#1890ff'
-                                : appointmentData.state === APPOINTMENT_STATE_COMPLETED
-                                    ? '#a4b1db'
-                                    : appointmentData.state === APPOINTMENT_STATE_CURRENT
-                                        ? 'green'
-                                        : appointmentData.state === APPOINTMENT_STATE_LATE
-                                            ? 'orange'
-                                            : 'crimson'
+                                : appointmentData.state === APPOINTMENT_STATE_FIXED
+                                    ? '#039be5'
+                                    : appointmentData.state === APPOINTMENT_STATE_COMPLETED
+                                        ? '#a4b1db'
+                                        : appointmentData.state === APPOINTMENT_STATE_CURRENT
+                                            ? 'green'
+                                            : appointmentData.state === APPOINTMENT_STATE_LATE
+                                                ? 'orange'
+                                                : 'crimson'
                         }} />
                     </Grid>
                     <Grid item xs={10}>
@@ -224,15 +235,21 @@ class HomeComponent extends React.Component {
                     </Grid>
                 </Grid>
 
-                <Grid container alignItems="center" >
-                    <Grid item xs={2} style={{ display: 'flex', justifyContent: 'center', color: 'gray' }} >
-                        <AccessTime style={{ fontSize: '24px' }} />
-                    </Grid>
-                    <Grid item xs={10}>
-                        <span>Due at {job.dueDate.format('dddd, DD MMMM YYYY HH:00')}</span>
-                    </Grid>
-                </Grid>
+                {
+                    !appointmentData.state === APPOINTMENT_STATE_FIXED
+                        ?
+                        <Grid container alignItems="center" >
+                            <Grid item xs={2} style={{ display: 'flex', justifyContent: 'center', color: 'gray' }} >
+                                <AccessTime style={{ fontSize: '24px' }} />
+                            </Grid>
 
+                            <Grid item xs={10}>
+                                <span>Due at {job.dueDate.format('dddd, DD MMMM YYYY HH:00')}</span>
+                            </Grid>
+                        </Grid>
+                        :
+                        null
+                }
                 {
                     job.description
                         ?
@@ -246,19 +263,21 @@ class HomeComponent extends React.Component {
 
                 <div className="tooltip-wrapper">
                     <Button
-                        disabled={appointmentData.state === APPOINTMENT_STATE_COMPLETED}
+                        disabled={appointmentData.state === APPOINTMENT_STATE_COMPLETED || appointmentData.state === APPOINTMENT_STATE_FIXED}
                         onClick={() => this.onCompleteTheAppointment(appointmentData)}
                         icon={<CheckCircleOutlined />}
                         size={'large'}>
                         Complete
                         </Button>
                     <Button
+                        disabled={appointmentData.state === APPOINTMENT_STATE_FIXED}
                         onClick={() => this.onDelayTheAppointment(appointmentData)}
                         icon={<FieldTimeOutlined />}
                         size={'large'}>
                         Delay
                         </Button>
                     <Button
+                        disabled={appointmentData.state === APPOINTMENT_STATE_FIXED}
                         onClick={() => this.onFinishTheAppointment(appointmentData)}
                         icon={<DoubleRightOutlined />}
                         size={'large'}>
@@ -386,15 +405,21 @@ class HomeComponent extends React.Component {
 
         let className;
 
-        if (data.state === APPOINTMENT_STATE_COMPLETED) {
-            className = "appointment-done"
-        }
-        else if (data.state === APPOINTMENT_STATE_CURRENT) {
-            className = "appointment-active";
-        } else if (data.state === APPOINTMENT_STATE_LATE) {
-            className = "appointment-late"
-        } else if (data.state === APPOINTMENT_STATE_DELAY) {
-            className = "appointment-delay"
+        switch (data.state) {
+            case APPOINTMENT_STATE_COMPLETED:
+                className = "appointment-done"
+                break;
+            case APPOINTMENT_STATE_FIXED:
+                className = "appointment-fixed";
+                break;
+            case APPOINTMENT_STATE_CURRENT:
+                className = "appointment-active";
+                break;
+            case APPOINTMENT_STATE_LATE:
+                className = "appointment-late"
+                break;
+            case APPOINTMENT_STATE_DELAY:
+                className = "appointment-delay"
         }
 
         return (
@@ -669,13 +694,20 @@ class HomeComponent extends React.Component {
                 {...restProps}
                 appointmentData={appointmentData}
             >
-                <MaterialButton className="icon-button-wrapper" onClick={() => {
-                    this.setState({ isPartitionModalVisible: true, partitionAppointmentData: appointmentData })
-                    this.toggleVisibility();
-                    this.onAppointmentMetaChange();
-                }}>
-                    <SplitCellsOutlined />
-                </MaterialButton>
+                {
+                    !appointmentData.state === APPOINTMENT_STATE_FIXED ?
+                        <MaterialButton
+                            className="icon-button-wrapper"
+                            onClick={() => {
+                                this.setState({ isPartitionModalVisible: true, partitionAppointmentData: appointmentData })
+                                this.toggleVisibility();
+                                this.onAppointmentMetaChange();
+                            }}>
+                            <SplitCellsOutlined />
+                        </MaterialButton>
+                        :
+                        null
+                }
             </AppointmentTooltip.Header>
         )
     }
@@ -727,7 +759,6 @@ class HomeComponent extends React.Component {
                             appointmentMeta={this.state.appointmentTooltipMetadata}
                             onAppointmentMetaChange={this.onAppointmentMetaChange}
                             onVisibilityChange={() => this.setState({ isAppointmentTooltipVisible: false })}
-
                             contentComponent={this.getTooltipContent.bind(this)}
                         />
 
@@ -780,12 +811,12 @@ class HomeComponent extends React.Component {
                     <h2>Appointment Merging</h2>
                     <p style={{ marginTop: '20px' }}>
                         The appointment that you dragged is overlapping with another appointment of the same job.
-                        <br/>
-                        <br/>
+                        <br />
+                        <br />
                         You can press 'Merge' to merge both appointment into one, press 'Ignore' to apply the drag but not merge
                         or 'Cancel' to abort the operation.
-                        <br/>
-                        <br/>
+                        <br />
+                        <br />
                         You can separate the merged appointment again by using the partition tool that is avaliable at the appointment options.
                     </p>
                 </Modal>
