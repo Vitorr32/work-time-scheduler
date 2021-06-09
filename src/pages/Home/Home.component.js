@@ -56,7 +56,9 @@ class HomeComponent extends React.Component {
                 data: {},
             },
             isMergeModalVisible: false,
-            mergeState: null
+            mergeState: null,
+            isRecurrentChangeModalVisible: false,
+            recurrentChangeState: null
         }
 
         this.toggleVisibility = () => {
@@ -461,6 +463,21 @@ class HomeComponent extends React.Component {
             const appointment = appointments.find(appo => appo.id === props.deleted);
             const job = this.findJobOfAppointment(appointment);
 
+            if (appointment.state === APPOINTMENT_STATE_FIXED) {
+                this.setState({
+                    isRecurrentChangeModalVisible: true,
+                    recurrentChangeState: {
+                        previousStart: appointment.startDate,
+                        previosEnd: appointment.endDate,
+                        job,
+                        appointment,
+                        change: 'DELETED'
+                    }
+                })
+
+                return;
+            }
+
             const previewedDeletionAppointments = [...appointments];
             previewedDeletionAppointments.splice(previewedDeletionAppointments.findIndex(appo => appo.id === props.deleted), 1)
 
@@ -490,6 +507,25 @@ class HomeComponent extends React.Component {
                 if (newEndDate.diff(newStartDate, 'hours') === 24) {
                     newStartDate.set('hour', this.props.workStart);
                     newEndDate = newStartDate.clone().set('hour', this.props.workStart + appointment.hours);
+                }
+
+                if (appointment.state === APPOINTMENT_STATE_FIXED) {
+                    const job = this.findJobOfAppointment(appointment);
+
+                    this.setState({
+                        isRecurrentChangeModalVisible: true,
+                        recurrentChangeState: {
+                            previousStart: appointment.startDate,
+                            previosEnd: appointment.endDate,
+                            newStart: newStartDate,
+                            newEnd: newEndDate,
+                            job,
+                            appointment,
+                            change: 'CHANGED'
+                        }
+                    })
+
+                    return;
                 }
 
                 const collidedAppointmentOfSameJob = appointments.find(appo => {
@@ -688,6 +724,30 @@ class HomeComponent extends React.Component {
         }
     }
 
+    onRecurrentAppointmentChange({ previousStart, previosEnd, newStart, newEnd, job, appointment, change }, specification) {
+        switch (specification) {
+            case 'THIS':
+                if (change === 'CHANGED') {
+                    appointment.startDate = newStart;
+                    appointment.endDate = newEnd;
+                    this.props.updateAppointment(appointment);
+                } else {
+                    job.appointments.splice(job.appointments.findIndex(appo => appo === appointment.id), 1);
+
+                    this.props.deleteAppointment([appointment.id]);
+                    this.props.updateJob(job);
+                }
+                break;
+            case 'DAY':
+                break;
+            case 'ALL':
+                break;
+
+        }
+
+        this.setState({ isRecurrentChangeModalVisible: false, recurrentChangeState: null })
+    }
+
     getHeaderComponent({ children, appointmentData, classes, ...restProps }) {
         return (
             <AppointmentTooltip.Header
@@ -820,6 +880,67 @@ class HomeComponent extends React.Component {
                         You can separate the merged appointment again by using the partition tool that is avaliable at the appointment options.
                     </p>
                 </Modal>
+
+                {
+                    this.state.isRecurrentChangeModalVisible
+                        ?
+                        <Modal
+                            visible={this.state.isRecurrentChangeModalVisible}
+                            footer={[
+                                <Button key="cancelRecurrent" className="cancel" onClick={() => this.setState({ isRecurrentChangeModalVisible: false, recurrentChangeState: null })}>
+                                    Cancel
+                                </Button>,
+                                <Button key="everything" type="primary" onClick={() => this.onRecurrentAppointmentChange(this.state.recurrentChangeState, 'ALL')} >
+                                    Everything
+                                </Button>,
+                                <Button key="allOnDay" type="primary" onClick={() => this.onRecurrentAppointmentChange(this.state.recurrentChangeState, 'DAY')} >
+                                    All on {this.state.recurrentChangeState.previousStart.format('dddd')}
+                                </Button>,
+                                <Button key="onlyThis" type="primary" onClick={() => this.onRecurrentAppointmentChange(this.state.recurrentChangeState, 'THIS')}>
+                                    Only This
+                                </Button>
+                            ]}
+                            onOk={() => true}
+                            onCancel={() => this.setState({ isRecurrentChangeModalVisible: false, recurrentChangeState: null })}
+                            className="recurrent-change-modal">
+                            <h2>Recurrent Appointment Change</h2>
+                            {
+                                this.state.recurrentChangeState.change === 'CHANGED'
+                                    ?
+                                    <p>
+                                        You are currently trying to change the period of one appointment of the recurrent event
+                                        "{this.state.recurrentChangeState.job.name}".
+                                        <br />
+                                        <br />
+                                        Please specify if this change should only occur to the modified appointment,
+                                        or all the appointments of this event that are in the
+                                        same day ({this.state.recurrentChangeState.previousStart.format('dddd')}). You could
+                                        also commit the change to every single appointment of the recurrent event.
+                                        <br />
+                                        <br />
+                                        Press "Only This" to modify only the selected appointment, "All on {this.state.recurrentChangeState.previousStart.format('dddd')}"
+                                        to modify all the appointments on the same week day or "Everything" to modify all appointments of the recurrent event.
+                                    </p>
+                                    :
+                                    <p>
+                                        You are currently trying to delete the period of one appointment of the recurrent event
+                                        "{this.state.recurrentChangeState.job.name}".
+                                        <br />
+                                        <br />
+                                        Please specify if this deletion should only occur to the modified appointment,
+                                        or all the appointments of this event that are in the
+                                        same day ({this.state.recurrentChangeState.previousStart.format('dddd')}). You could
+                                        also delete every single appointment of the recurrent event, removing the event entirely from the scheduler.
+                                        <br />
+                                        <br />
+                                        Press "Only This" to delete only the selected appointment, "All on {this.state.recurrentChangeState.previousStart.format('dddd')}"
+                                        to delete all the appointments on the same week day or "Everything" to delete all appointments and the recurrent event.
+                                    </p>
+                            }
+                        </Modal>
+                        :
+                        null
+                }
 
                 {
                     this.state.isPartitionModalVisible
