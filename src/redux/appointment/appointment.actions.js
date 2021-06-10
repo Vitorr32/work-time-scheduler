@@ -10,9 +10,9 @@ export const updateAppointment = appointment => ({
     payload: appointment
 })
 
-export const deleteAppointment = id => ({
+export const deleteAppointment = ids => ({
     type: types.DELETE_APPOINTMENT,
-    payload: id
+    payload: ids
 })
 
 export const addJob = job => ({

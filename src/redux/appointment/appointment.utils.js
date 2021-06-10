@@ -27,10 +27,11 @@ export function updateJobOnList(jobList = [], toUpdateJob) {
 }
 
 export function deleteAppointment(appointmentList = [], toDeleteIDs = []) {
-    const indexesOnList = toDeleteIDs.map(id => appointmentList.findIndex(appointment => appointment.id === id));
-
     const updatedList = [...appointmentList];
-    indexesOnList.forEach(index => updatedList.splice(index, 1))
+
+    toDeleteIDs.forEach(id => {
+        updatedList.splice(updatedList.findIndex(appointment => appointment.id === id), 1)
+    })
 
     return updatedList;
 }

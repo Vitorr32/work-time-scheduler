@@ -343,7 +343,8 @@ class HomeComponent extends React.Component {
             appointment.state === APPOINTMENT_STATE_TO_DO ||
             appointment.state === APPOINTMENT_STATE_CURRENT ||
             appointment.state === APPOINTMENT_STATE_DELAY ||
-            appointment.state === APPOINTMENT_STATE_LATE
+            appointment.state === APPOINTMENT_STATE_LATE ||
+            appointment.state === APPOINTMENT_STATE_FIXED
         ).length === 0;
     }
 
@@ -477,6 +478,8 @@ class HomeComponent extends React.Component {
 
                 return;
             }
+
+            console.log("YOLOOOOOO")
 
             const previewedDeletionAppointments = [...appointments];
             previewedDeletionAppointments.splice(previewedDeletionAppointments.findIndex(appo => appo.id === props.deleted), 1)
@@ -727,25 +730,83 @@ class HomeComponent extends React.Component {
     onRecurrentAppointmentChange({ previousStart, previosEnd, newStart, newEnd, job, appointment, change }, specification) {
         switch (specification) {
             case 'THIS':
+                console.log("THIS");
                 if (change === 'CHANGED') {
                     appointment.startDate = newStart;
                     appointment.endDate = newEnd;
                     this.props.updateAppointment(appointment);
                 } else {
-                    job.appointments.splice(job.appointments.findIndex(appo => appo === appointment.id), 1);
+                    const previewedDeletionAppointments = [...this.props.appointments];
+                    previewedDeletionAppointments.splice(previewedDeletionAppointments.findIndex(appo => appo.id === appointment.id), 1)
 
-                    this.props.deleteAppointment([appointment.id]);
-                    this.props.updateJob(job);
+                    if (this.shouldDeleteJob(job, previewedDeletionAppointments)) {
+                        this.props.deleteJob(job);
+                    } else {
+                        job.appointments.splice(job.appointments.findIndex(appo => appo === appointment.id), 1);
+
+                        this.props.deleteAppointment([appointment.id]);
+                        this.props.updateJob(job);
+                    }
                 }
                 break;
             case 'DAY':
+                const jobAppointments = this.findAllAppointmentsOfJobInWeekDay(job, previousStart.isoWeekday());
+                console.log('jobAppointments', jobAppointments);
+
+                if (change === 'CHANGED') {
+                    jobAppointments.forEach(jobAppo => {
+                        jobAppo.startDate.set('hour', newStart.get('hour'))
+                        jobAppo.endDate.set('hour', newEnd.get('hour'))
+                        this.props.updateAppointment(jobAppo);
+                    })
+                } else {
+                    const previewedDeletionAppointments = [...this.props.appointments];
+                    const newJob = Object.assign({}, job);
+                    jobAppointments.forEach(jobAppo => {
+                        previewedDeletionAppointments.splice(previewedDeletionAppointments.findIndex(appo => appo.id === jobAppo.id), 1)
+                    })
+
+                    if (this.shouldDeleteJob(job, previewedDeletionAppointments)) {
+                        console.log("DELETED EVERYTHING");
+                        this.props.deleteJob(job);
+                    } else {
+                        jobAppointments.forEach(jobAppo => {
+                            newJob.appointments.splice(newJob.appointments.findIndex(appo => appo === jobAppo.id), 1);
+
+                            const yolo = Object.assign({}, jobAppo);
+                            console.log(yolo);
+                            console.log(yolo.startDate.isoWeekday())
+                        })
+
+                        this.props.deleteAppointment(jobAppointments.map(jobAppo => jobAppo.id));
+                        this.props.updateJob(newJob);
+                    }
+                }
                 break;
             case 'ALL':
-                break;
+                const allJobAppointments = this.props.appointments.filter(appo => {
+                    return job.appointments.find(jobAppo => jobAppo === appo.id)
+                })
 
+                if (change === 'CHANGED') {
+                    allJobAppointments.forEach(jobAppo => {
+                        jobAppo.startDate.set('hour', newStart.get('hour'))
+                        jobAppo.endDate.set('hour', newEnd.get('hour'))
+                        this.props.updateAppointment(jobAppo);
+                    })
+                } else {
+                    this.props.deleteJob(job);
+                }
+                break;
         }
 
         this.setState({ isRecurrentChangeModalVisible: false, recurrentChangeState: null })
+    }
+
+    findAllAppointmentsOfJobInWeekDay(job, weekDay) {
+        return this.props.appointments.filter(appo => {
+            return appo.startDate.isoWeekday() === weekDay && job.appointments.find(jobAppo => jobAppo === appo.id)
+        })
     }
 
     getHeaderComponent({ children, appointmentData, classes, ...restProps }) {
@@ -773,6 +834,7 @@ class HomeComponent extends React.Component {
     }
 
     render() {
+        console.log("Lenght", this.props.appointments.length)
         return (
             <div id="home-wrapper">
                 <Header></Header>
