@@ -479,8 +479,6 @@ class HomeComponent extends React.Component {
                 return;
             }
 
-            console.log("YOLOOOOOO")
-
             const previewedDeletionAppointments = [...appointments];
             previewedDeletionAppointments.splice(previewedDeletionAppointments.findIndex(appo => appo.id === props.deleted), 1)
 
@@ -498,21 +496,25 @@ class HomeComponent extends React.Component {
         }
 
         if (props.changed) {
-            console.log(props);
             Object.keys(props.changed).forEach(changedId => {
                 const { endDate, startDate } = props.changed[changedId];
 
                 const appointment = appointments.find(appo => appo.id === changedId);
 
                 let newStartDate = moment(startDate);
-                let newEndDate = moment(endDate);
+                let newEndDate = moment(endDate);                
 
                 if (newEndDate.diff(newStartDate, 'hours') === 24) {
                     newStartDate.set('hour', this.props.workStart);
                     newEndDate = newStartDate.clone().set('hour', this.props.workStart + appointment.hours);
                 }
 
-                if (appointment.state === APPOINTMENT_STATE_FIXED) {
+                //Check if the new start date is the same as the old one, if is there's nothing left to do
+                if(newStartDate.isSame(appointment.startDate)){
+                    return;
+                }
+
+                if (appointment.state === APPOINTMENT_STATE_FIXED && appointment.startDate.get('day') === newStartDate.get('day')) {
                     const job = this.findJobOfAppointment(appointment);
 
                     this.setState({
@@ -730,7 +732,6 @@ class HomeComponent extends React.Component {
     onRecurrentAppointmentChange({ previousStart, previosEnd, newStart, newEnd, job, appointment, change }, specification) {
         switch (specification) {
             case 'THIS':
-                console.log("THIS");
                 if (change === 'CHANGED') {
                     appointment.startDate = newStart;
                     appointment.endDate = newEnd;
@@ -751,7 +752,6 @@ class HomeComponent extends React.Component {
                 break;
             case 'DAY':
                 const jobAppointments = this.findAllAppointmentsOfJobInWeekDay(job, previousStart.isoWeekday());
-                console.log('jobAppointments', jobAppointments);
 
                 if (change === 'CHANGED') {
                     jobAppointments.forEach(jobAppo => {
@@ -767,15 +767,10 @@ class HomeComponent extends React.Component {
                     })
 
                     if (this.shouldDeleteJob(job, previewedDeletionAppointments)) {
-                        console.log("DELETED EVERYTHING");
                         this.props.deleteJob(job);
                     } else {
                         jobAppointments.forEach(jobAppo => {
                             newJob.appointments.splice(newJob.appointments.findIndex(appo => appo === jobAppo.id), 1);
-
-                            const yolo = Object.assign({}, jobAppo);
-                            console.log(yolo);
-                            console.log(yolo.startDate.isoWeekday())
                         })
 
                         this.props.deleteAppointment(jobAppointments.map(jobAppo => jobAppo.id));
@@ -834,7 +829,6 @@ class HomeComponent extends React.Component {
     }
 
     render() {
-        console.log("Lenght", this.props.appointments.length)
         return (
             <div id="home-wrapper">
                 <Header></Header>
@@ -952,19 +946,19 @@ class HomeComponent extends React.Component {
                                 <Button key="cancelRecurrent" className="cancel" onClick={() => this.setState({ isRecurrentChangeModalVisible: false, recurrentChangeState: null })}>
                                     Cancel
                                 </Button>,
-                                <Button key="everything" type="primary" onClick={() => this.onRecurrentAppointmentChange(this.state.recurrentChangeState, 'ALL')} >
+                                <Button key="everything" className="everything" type="primary" onClick={() => this.onRecurrentAppointmentChange(this.state.recurrentChangeState, 'ALL')} >
                                     Everything
                                 </Button>,
-                                <Button key="allOnDay" type="primary" onClick={() => this.onRecurrentAppointmentChange(this.state.recurrentChangeState, 'DAY')} >
+                                <Button key="allOnDay" className="day" type="primary" onClick={() => this.onRecurrentAppointmentChange(this.state.recurrentChangeState, 'DAY')} >
                                     All on {this.state.recurrentChangeState.previousStart.format('dddd')}
                                 </Button>,
-                                <Button key="onlyThis" type="primary" onClick={() => this.onRecurrentAppointmentChange(this.state.recurrentChangeState, 'THIS')}>
+                                <Button key="onlyThis" className="this" type="primary" onClick={() => this.onRecurrentAppointmentChange(this.state.recurrentChangeState, 'THIS')}>
                                     Only This
                                 </Button>
                             ]}
                             onOk={() => true}
                             onCancel={() => this.setState({ isRecurrentChangeModalVisible: false, recurrentChangeState: null })}
-                            className="recurrent-change-modal">
+                            className={this.state.recurrentChangeState.change === 'CHANGED' ? "recurrent-change-modal changed" : "recurrent-change-modal deleted"}>
                             <h2>Recurrent Appointment Change</h2>
                             {
                                 this.state.recurrentChangeState.change === 'CHANGED'

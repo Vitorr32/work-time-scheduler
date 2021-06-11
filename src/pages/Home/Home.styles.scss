@@ -69,7 +69,8 @@
         background-color: white;
         border: 1px solid #039be5;
 
-        .title, span {
+        .title,
+        span {
             color: #039be5;
         }
     }
@@ -144,6 +145,38 @@
         &.reverse {
             flex-direction: row-reverse;
         }
+    }
+}
+
+.recurrent-change-modal {
+    &.changed {
+        .everything {
+            border-color: #002896;
+            background-color: #002896;
+        }
+        .day {
+            border-color: #0234be;
+            background-color: #0234be;
+        }
+    }
+
+    &.deleted {
+        .everything {
+            border-color: #af1030;
+            background-color: #af1030;
+        }
+        .day {
+            border-color: crimson;
+            background-color: crimson;
+        }
+        .this{
+            border-color: #f5113e;
+            background-color: #f5113e;
+        }
+    }
+
+    .cancel {
+        margin-right: calc(100% - 410px);
     }
 }
 
