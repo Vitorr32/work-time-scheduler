@@ -270,21 +270,21 @@ class HomeComponent extends React.Component {
                         icon={<CheckCircleOutlined />}
                         size={'large'}>
                         Complete
-                        </Button>
+                    </Button>
                     <Button
                         disabled={appointmentData.state === APPOINTMENT_STATE_FIXED}
                         onClick={() => this.onDelayTheAppointment(appointmentData)}
                         icon={<FieldTimeOutlined />}
                         size={'large'}>
                         Delay
-                        </Button>
+                    </Button>
                     <Button
                         disabled={appointmentData.state === APPOINTMENT_STATE_FIXED}
                         onClick={() => this.onFinishTheAppointment(appointmentData)}
                         icon={<DoubleRightOutlined />}
                         size={'large'}>
                         Finish
-                        </Button>
+                    </Button>
                 </div>
             </div>
         )
@@ -501,8 +501,8 @@ class HomeComponent extends React.Component {
 
                 const appointment = appointments.find(appo => appo.id === changedId);
 
-                let newStartDate = moment(startDate);
-                let newEndDate = moment(endDate);                
+                let newStartDate = moment(startDate).startOf('hour');
+                let newEndDate = moment(endDate).startOf('hour');
 
                 if (newEndDate.diff(newStartDate, 'hours') === 24) {
                     newStartDate.set('hour', this.props.workStart);
@@ -510,7 +510,7 @@ class HomeComponent extends React.Component {
                 }
 
                 //Check if the new start date is the same as the old one, if is there's nothing left to do
-                if(newStartDate.isSame(appointment.startDate)){
+                if (newStartDate.isSame(appointment.startDate)) {
                     return;
                 }
 
@@ -534,8 +534,8 @@ class HomeComponent extends React.Component {
                 }
 
                 const collidedAppointmentOfSameJob = appointments.find(appo => {
-                    if (newStartDate.isBetween(appo.startDate, appo.endDate) ||
-                        newEndDate.isBetween(appo.startDate, appo.endDate)) {
+
+                    if (newStartDate.isBetween(appo.startDate, appo.endDate, 'hour', '[)')) {
                         return appo.jobId === appointment.jobId;
                     }
 
@@ -811,7 +811,8 @@ class HomeComponent extends React.Component {
                 appointmentData={appointmentData}
             >
                 {
-                    !appointmentData.state === APPOINTMENT_STATE_FIXED ?
+                    appointmentData.state !== APPOINTMENT_STATE_FIXED
+                        ?
                         <MaterialButton
                             className="icon-button-wrapper"
                             onClick={() => {
