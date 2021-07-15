@@ -536,7 +536,7 @@ class HomeComponent extends React.Component {
                 const collidedAppointmentOfSameJob = appointments.find(appo => {
 
                     if (newStartDate.isBetween(appo.startDate, appo.endDate, 'hour', '[)')) {
-                        return appo.jobId === appointment.jobId;
+                        return appo.jobId === appointment.jobId && appo.id !== appointment.id;
                     }
 
                     return false;

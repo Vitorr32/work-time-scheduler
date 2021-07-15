@@ -1,4 +1,4 @@
-import { Input, Form, Modal, InputNumber, DatePicker, Button, Checkbox, Tooltip, Select, TimePicker } from 'antd';
+import { Input, Form, Modal, InputNumber, DatePicker, Button, Checkbox, Tooltip, Select, TimePicker, Space } from 'antd';
 import React from 'react';
 import { connect } from 'react-redux';
 import { addAppointment, addJob } from '../../redux/appointment/appointment.actions';
@@ -6,7 +6,7 @@ import moment from 'moment';
 
 import './AppointmentForm.styles.scss';
 import { JOB_IS_RECURRENT_EVENT, JOB_NOT_STARTED, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
-import { CoffeeOutlined, FieldTimeOutlined, HourglassOutlined } from '@ant-design/icons';
+import { CoffeeOutlined, FieldTimeOutlined, HourglassOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { createPeriodObject, getAllVacatedSpacesInPeriodUntilDueDate, getTotalHoursOfPeriods, mergeContinousAppointmentsInDifferentPeriods, verifyAppointmentDisponibility } from '../../utils/periods';
 
 const { RangePicker } = TimePicker;
@@ -143,7 +143,7 @@ class AppointmentForm extends React.Component {
         const period = values.find(inputData => inputData.name.includes('period'));
 
         const { appointments, workStart, workEnd, freeStart, freeEnd } = this.props;
-        if (lastChange.name.includes('hours') || lastChange.name.includes('dueDate') || lastChange.name.includes('timeFrame') || lastChange.name.includes('period')) {
+        if (lastChange.name.includes('hours') || lastChange.name.includes('dueDate') || lastChange.name.includes('continuousPeriod') || lastChange.name.includes('timeFrame') || lastChange.name.includes('period')) {
 
             const targetDate = this.configureTargetDate(dueDate, timeFrame, period);
 
@@ -268,7 +268,7 @@ class AppointmentForm extends React.Component {
                         {...layout}
                         ref={this.formRef}
                         name="eventForm"
-                        initialValues={{ continuousPeriod: true }}
+                        initialValues={{ continuousPeriod: false }}
                         onFinish={(values) => this.onFormSubmit(values)}
                         onFieldsChange={this.previewPeriods.bind(this)}
 
@@ -442,14 +442,17 @@ class AppointmentForm extends React.Component {
                                         </Tooltip>
                                     </div>
 
-
-                                    <Form.Item
-                                        label="Continuous Priority"
-                                        valuePropName='checked'
-                                        name="continuousPeriod">
-                                        <Tooltip title="Whether the Scheduler should focus on finding continuous periods or just distribute the event in the open periods avaliable">
-                                            <Checkbox disabled={!enabledForm}></Checkbox>
-                                        </Tooltip>
+                                    <Form.Item label="Continuous Priority">
+                                        <Space className="continuous-space">
+                                            <Form.Item
+                                                valuePropName='checked'
+                                                name="continuousPeriod">
+                                                <Checkbox disabled={!enabledForm} />
+                                            </Form.Item>
+                                            <Tooltip title="Whether the Scheduler should focus on finding continuous periods or just distribute the event in the open periods avaliable">
+                                                <QuestionCircleOutlined />
+                                            </Tooltip>
+                                        </Space>
                                     </Form.Item>
                                 </React.Fragment>
                         }

@@ -21,7 +21,7 @@ export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, curren
     const currentDistributedHours = getTotalHoursOfPeriods(vacatedWorkPeriods)
 
     //If we already allocated all the nescessary time in the work period, finish the function, otherwise allocate to free time
-    if (vacatedWorkPeriods.length != 0 && currentDistributedHours >= totalHoursNeeded) {
+    if (vacatedWorkPeriods.length !== 0 && currentDistributedHours >= totalHoursNeeded) {
         return {
             state: SCHEDULE_WORK_ONLY,
             periods: vacatedWorkPeriods
@@ -52,7 +52,7 @@ export function verifyAppointmentDisponibility(totalHoursNeeded, dueDate, curren
     const distributedHoursInFreePeriod = getTotalHoursOfPeriods(vacatedFreePeriods);
     const mergedPeriods = mergeContinousAppointmentsInDifferentPeriods([...vacatedWorkPeriods, ...vacatedFreePeriods])
 
-    if (vacatedFreePeriods.length != 0 && currentDistributedHours + distributedHoursInFreePeriod >= totalHoursNeeded) {
+    if (vacatedFreePeriods.length !== 0 && currentDistributedHours + distributedHoursInFreePeriod >= totalHoursNeeded) {
         return {
             state: SCHEDULE_FREE_TIME,
             periods: mergedPeriods
@@ -256,44 +256,55 @@ export function pickBestContinuosPeriods(periods, neededHours) {
         return periods;
     }
 
+    let modifiedPeriods = periods.slice();
     //Sort the periods by hours and then by earliest
-    periods.sort((a, b) =>
-        (a.hours > b.hours || a.hours === neededHours)
-            ? -1
-            : (b.hours > a.hours)
-                ? 1
-                : a.start.isBefore(b.start)
-                    ? -1
-                    : b.start.isBefore(a.start)
-                        ? 1
-                        : 0
-    );
+    modifiedPeriods = modifiedPeriods.sort((a, b) => sortPeriodArrayByHoursAndOrder(a, b, neededHours))
 
     let remainingHours = neededHours;
     const currentPeriods = []
 
-    for (let i = 0; i < periods.length; i++) {
-        const currentPeriod = periods[i];
+    while (remainingHours > 0) {
+        const currentPeriod = modifiedPeriods[0];
+
         if (currentPeriod.hours === remainingHours) {
             currentPeriods.push(currentPeriod);
             break;
         }
-        else if (currentPeriod.hours > remainingHours) {
-            //Remove from the period the extra hours and put it in the array of periods.
+
+        if (currentPeriod.hours > remainingHours) {
             const hourDifference = currentPeriod.hours - remainingHours;
 
             currentPeriod.hours = currentPeriod.hours - hourDifference;
             currentPeriod.end = currentPeriod.end.subtract(hourDifference, 'hours');
-            currentPeriods.push(currentPeriod);
+            currentPeriods.push(currentPeriod)
 
             break;
+        }
+
+        currentPeriods.push(currentPeriod);
+        remainingHours -= currentPeriod.hours;
+
+        //Search if there is any period with less hours that could hold the remaining time and is sooner
+        if (modifiedPeriods.find(period => period.hours >= remainingHours && period.start.isBefore(currentPeriod.start))) {
+            modifiedPeriods = modifiedPeriods.filter(period => period.hours !== currentPeriod.hours);
         } else {
-            currentPeriods.push(currentPeriod);
-            remainingHours -= currentPeriod.hours;
+            modifiedPeriods.shift();
         }
     }
 
     return currentPeriods;
+}
+
+export function sortPeriodArrayByHoursAndOrder(a, b, neededHours) {
+    return (a.hours > b.hours || a.hours === neededHours)
+        ? -1
+        : (b.hours > a.hours || b.hours === neededHours)
+            ? 1
+            : a.start.isBefore(b.start)
+                ? -1
+                : b.start.isBefore(a.start)
+                    ? 1
+                    : 0
 }
 
 export function getTotalHoursOfPeriods(periods) {

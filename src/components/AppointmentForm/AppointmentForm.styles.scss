@@ -12,3 +12,13 @@
         }
     }
 }
+
+.continuous-space {
+    align-items: flex-start !important;
+
+    svg {
+        height: 20px;
+        width: 20px;
+        margin-top: 7px;
+    }
+}
