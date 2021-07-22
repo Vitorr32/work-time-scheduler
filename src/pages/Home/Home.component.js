@@ -355,7 +355,10 @@ class HomeComponent extends React.Component {
 
         const newDistributedPeriods = verifyAppointmentDisponibility(
             appointment.hours,
-            job.dueDate,
+            //Check if the appointment is currently ending after the dueDate, or if the appointment can't possibly be put before the dueDate
+            appointment.endDate.isSameOrAfter(job.dueDate) || appointment.endDate.add(appointment.hours, 'hours').isAfter(job.dueDate)
+                ? moment().add(1, 'year')
+                : job.dueDate,
             appointments,
             [workStart, workEnd],
             [freeStart, freeEnd],
@@ -378,7 +381,15 @@ class HomeComponent extends React.Component {
     onConfirmationOfRealocation(directState = null) {
         const { periods, job, appointment } = directState || this.state.realocatedState;
 
-        const newAppointments = periods.map(period => createPeriodObject(period, job.id))
+        const newAppointments = periods.map(period => {
+            const appointment = createPeriodObject(period, job.id)
+            const currentState = this.checkStateOfAppointment(appointment)
+            if (appointment.state !== currentState) {
+                appointment.state = currentState;
+            }
+
+            return appointment
+        })
 
         //Removed old appointment and insert new ids from the job object
         const indexOfAppointment = job.appointments.findIndex(appoID => appoID === appointment.id);
