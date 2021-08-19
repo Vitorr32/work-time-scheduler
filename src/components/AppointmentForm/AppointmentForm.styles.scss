@@ -1,14 +1,19 @@
 .due-date-wrapper {
-    position: relative;
+    .ant-space-horizontal {
+        width: 100%;
+
+        & > .ant-space-item:nth-child(1) {
+            flex: 1;
+        }
+        & > .ant-space-item:nth-child(2) {
+            flex: 0;
+        }
+    }
 
     .due-date-toogle {
-        position: absolute;
-        right: 0px;
-        top: calc(50% - 10px);
-
         svg {
-            height: 20px;
-            width: 20px;
+            height: 24px;
+            width: 24px;
         }
     }
 }

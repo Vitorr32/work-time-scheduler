@@ -1,11 +1,11 @@
-import { Input, Form, Modal, InputNumber, DatePicker, Button, Checkbox, Tooltip, Select, TimePicker, Space } from 'antd';
+import { Input, Form, Modal, InputNumber, DatePicker, Button, Checkbox, Tooltip, Select, TimePicker, Space, Divider } from 'antd';
 import React from 'react';
 import { connect } from 'react-redux';
 import { addAppointment, addJob } from '../../redux/appointment/appointment.actions';
 import moment from 'moment';
 
 import './AppointmentForm.styles.scss';
-import { JOB_IS_RECURRENT_EVENT, JOB_NOT_STARTED, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
+import { JOB_IS_RECURRENT_EVENT, JOB_NOT_STARTED, PERIOD_FORMAT, SCHEDULE_FREE_TIME, SCHEDULE_FULL, SCHEDULE_WORK_ONLY } from '../../utils/constants';
 import { CoffeeOutlined, FieldTimeOutlined, HourglassOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { createPeriodObject, getAllVacatedSpacesInPeriodUntilDueDate, getTotalHoursOfPeriods, mergeContinousAppointmentsInDifferentPeriods, verifyAppointmentDisponibility } from '../../utils/periods';
 
@@ -94,8 +94,8 @@ class AppointmentForm extends React.Component {
             description: values.description,
             dueDate: values.dueDate
                 ? values.dueDate.startOf('hour')
-                : values.period && values.timeFrame
-                    ? moment().add(values.period, values.timeFrame).startOf('hour')
+                : values.period
+                    ? this.mapDueDateByPeriodString(values.period)
                     : null,
             totalHours: values.hours,
             state: JOB_NOT_STARTED,
@@ -139,13 +139,12 @@ class AppointmentForm extends React.Component {
         const hours = values.find(inputData => inputData.name.includes('hours'));
         const continuousPeriod = values.find(inputData => inputData.name.includes('continuousPeriod'));
         const dueDate = values.find(inputData => inputData.name.includes('dueDate'));
-        const timeFrame = values.find(inputData => inputData.name.includes('timeFrame'));
         const period = values.find(inputData => inputData.name.includes('period'));
 
         const { appointments, workStart, workEnd, freeStart, freeEnd } = this.props;
-        if (lastChange.name.includes('hours') || lastChange.name.includes('dueDate') || lastChange.name.includes('continuousPeriod') || lastChange.name.includes('timeFrame') || lastChange.name.includes('period')) {
+        if (lastChange.name.includes('hours') || lastChange.name.includes('dueDate') || lastChange.name.includes('continuousPeriod') || lastChange.name.includes('period')) {
 
-            const targetDate = this.configureTargetDate(dueDate, timeFrame, period);
+            const targetDate = this.configureTargetDate(dueDate, period);
 
             if (hours.value && targetDate) {
                 const verifiedDisponibility = verifyAppointmentDisponibility(hours.value, targetDate, appointments, [workStart, workEnd], [freeStart, freeEnd], null, continuousPeriod.value);
@@ -177,6 +176,8 @@ class AppointmentForm extends React.Component {
                             appointmentSuccessful: false
                         })
                         break;
+                    default:
+                        console.error("No disponibility set, state is :" + verifiedDisponibility.state);
                 }
             } else {
                 this.setState({
@@ -187,12 +188,52 @@ class AppointmentForm extends React.Component {
         }
     }
 
-    configureTargetDate(dueDate, period, timeFrame) {
-        return dueDate && dueDate.value
+    configureTargetDate(dueDate, period) {
+        return dueDate && dueDate.value && moment(dueDate.value, 'DD/MM/YYYY HH:00').isValid()
             ? dueDate.value.startOf('hour')
-            : period && period.value && timeFrame && timeFrame.value
-                ? moment().add(period.value, timeFrame.value).startOf('hour')
+            : period && period.value
+                ? this.mapDueDateByPeriodString(period.value)
                 : null;
+    }
+
+    mapDueDateByPeriodString(periodString) {
+        if (periodString === '') {
+            return null;
+        }
+
+        const periodsSections = periodString.split(' ')
+        let currentDueDate = moment()
+        let hasChanged = false;
+        let hasError = false;
+
+        periodsSections.forEach(section => {
+            for (const dateKey in PERIOD_FORMAT) {
+                const indexOfKey = section.indexOf(dateKey)
+                if (indexOfKey !== -1) {
+                    try {
+                        if (section.slice(0, indexOfKey) === '') {
+                            throw new Error("No number following designated section")
+                        }
+                        const periodLength = parseInt(section.slice(0, indexOfKey));
+
+                        currentDueDate.add(periodLength, PERIOD_FORMAT[dateKey])
+                        hasChanged = true;
+                    } catch (e) {
+                        currentDueDate = null
+                        hasError = true
+                        break;
+                    }
+                } else {
+                    continue;
+                }
+            }
+
+            if (hasError) {
+                return;
+            }
+        })
+
+        return hasChanged ? currentDueDate : null;
     }
 
     onFutherActionSet(shouldDelay) {
@@ -235,6 +276,16 @@ class AppointmentForm extends React.Component {
         }
 
         return Promise.resolve();
+    }
+
+    validateManualPeriodInput(period) {
+        const mappedPeriod = this.mapDueDateByPeriodString(period);
+        
+        if (mappedPeriod) {
+            return Promise.resolve();
+        } else {
+            return Promise.reject("The period is using a invalid syntax, be sure to put spaces between the periods sections");
+        }
     }
 
     render() {
@@ -406,40 +457,36 @@ class AppointmentForm extends React.Component {
                                                     name="dueDate"
                                                     rules={[{ required: true, message: 'The dude date is required' }, { validator: this.validateDueDate }]}
                                                 >
-                                                    <DatePicker disabled={!enabledForm} format={'DD/MM/YYYY HH:00'} showTime />
+                                                    <Space split={<Divider type="vertical" />}>
+                                                        <DatePicker disabled={!enabledForm} format={'DD/MM/YYYY HH:00'} showTime />
+                                                        <Tooltip title="Change to the 'Time to due Date' input that allows you to insert the time to the due date instead of the specific date">
+                                                            <HourglassOutlined
+                                                                className="due-date-toogle"
+                                                                style={{ right: this.state.showTimeToDueDateInputField ? '20px' : '80px' }}
+                                                                onClick={() => this.setState({ showTimeToDueDateInputField: !this.state.showTimeToDueDateInputField })} />
+                                                        </Tooltip>
+                                                    </Space>
+
                                                 </Form.Item >
                                                 :
                                                 <Form.Item
-                                                    label="Time to Due Date"
+                                                    label="Due Date"
+                                                    name="period"
+                                                    rules={[{ required: true, message: 'The period value is required' }, { validator: (_, period) => this.validateManualPeriodInput(period) }]}
                                                 >
-                                                    <Input.Group compact>
-                                                        <Form.Item
-                                                            name={['timeFrame']}
-                                                            noStyle
-                                                            rules={[{ required: true, message: 'Please select the time frame to be used' }]}
-                                                        >
-                                                            <Select placeholder="Time frame">
-                                                                <Select.Option value="hour">Hour(s)</Select.Option>
-                                                                <Select.Option value="day">Day(s)</Select.Option>
-                                                            </Select>
-                                                        </Form.Item>
-                                                        <Form.Item
-                                                            name={['period']}
-                                                            noStyle
-                                                            rules={[{ required: true, message: 'The period value is required' }]}
-                                                        >
-                                                            <InputNumber style={{ width: '50%' }} placeholder="Period hours/days" />
-                                                        </Form.Item>
-                                                    </Input.Group>
-                                                </Form.Item >
+                                                    <Space split={<Divider type="vertical" />}>
+                                                        <Input disabled={!enabledForm} placeholder="Specific period (eg. 3w 4d 12h)" />
+                                                        <Tooltip title="Change to the 'Time to due Date' input that allows you to insert the time to the due date instead of the specific date">
+                                                            <HourglassOutlined
+                                                                className="due-date-toogle"
+                                                                style={{ right: this.state.showTimeToDueDateInputField ? '20px' : '80px' }}
+                                                                onClick={() => this.setState({ showTimeToDueDateInputField: !this.state.showTimeToDueDateInputField })} />
+                                                        </Tooltip>
+                                                    </Space>
+                                                </Form.Item>
                                         }
 
-                                        <Tooltip title="Change to the 'Time to due Date' input that allows you to insert the time to the due date instead of the specific date">
-                                            <HourglassOutlined
-                                                className="due-date-toogle"
-                                                style={{ right: this.state.showTimeToDueDateInputField ? '20px' : '80px' }}
-                                                onClick={() => this.setState({ showTimeToDueDateInputField: !this.state.showTimeToDueDateInputField })} />
-                                        </Tooltip>
+
                                     </div>
 
                                     <Form.Item label="Continuous Priority">

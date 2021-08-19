@@ -15,3 +15,9 @@ export const JOB_IS_RECURRENT_EVENT = 'JOB_IS_RECURRENT_EVENT';
 export const JOB_NOT_STARTED = 'JOB_NOT_STARTED';
 export const JOB_ON_GOING = 'JOB_ON_GOING';
 export const JOB_COMPLETED = 'JOB_COMPLETED';
+
+export const PERIOD_FORMAT = {
+    'w': 'weeks',
+    'd': 'days',
+    'h': 'hours'
+}
