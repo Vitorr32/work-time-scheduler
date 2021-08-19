@@ -233,7 +233,7 @@ class AppointmentForm extends React.Component {
             }
         })
 
-        return hasChanged ? currentDueDate : null;
+        return hasChanged ? currentDueDate.startOf('hour') : null;
     }
 
     onFutherActionSet(shouldDelay) {
@@ -271,8 +271,16 @@ class AppointmentForm extends React.Component {
     }
 
     validateDueDate(_, dueDate) {
+        if (!dueDate) {
+            return Promise.resolve();
+        }
+
         if (moment().isSameOrAfter(dueDate)) {
             return Promise.reject('The due date needs to be after now!')
+        }
+
+        if (!moment(dueDate, 'DD/MM/YYYY HH:00').isValid()) {
+            return Promise.reject('The date format is not valid, be sure to follow the format: DD/MM/YYYY HH:mm')
         }
 
         return Promise.resolve();
@@ -280,12 +288,17 @@ class AppointmentForm extends React.Component {
 
     validateManualPeriodInput(period) {
         const mappedPeriod = this.mapDueDateByPeriodString(period);
-        
+
         if (mappedPeriod) {
             return Promise.resolve();
         } else {
-            return Promise.reject("The period is using a invalid syntax, be sure to put spaces between the periods sections");
+            return Promise.reject("The period is using a invalid syntax, be sure to put spaces between the periods sections and the amount of time be before the selector character");
         }
+    }
+
+    onDueDateFieldToogleChange() {
+        this.setState({ showTimeToDueDateInputField: !this.state.showTimeToDueDateInputField })
+        this.formRef.current.setFieldsValue({ period: null, dueDate: null })
     }
 
     render() {
@@ -453,36 +466,38 @@ class AppointmentForm extends React.Component {
                                             !this.state.showTimeToDueDateInputField
                                                 ?
                                                 <Form.Item
-                                                    label="Due Date"
+                                                    label={
+                                                        <Space split={<Divider type="vertical" />}>
+                                                            Due Date
+                                                            <Tooltip title="Change to the 'Time to due Date' input that allows you to insert the time to the due date instead of the specific date">
+                                                                <HourglassOutlined
+                                                                    className="due-date-toogle "
+                                                                    onClick={() => this.onDueDateFieldToogleChange()} />
+                                                            </Tooltip>
+                                                        </Space>
+                                                    }
                                                     name="dueDate"
-                                                    rules={[{ required: true, message: 'The dude date is required' }, { validator: this.validateDueDate }]}
+                                                    rules={[{ required: true, message: 'The due date is required' }, { validator: this.validateDueDate }]}
                                                 >
-                                                    <Space split={<Divider type="vertical" />}>
-                                                        <DatePicker disabled={!enabledForm} format={'DD/MM/YYYY HH:00'} showTime />
-                                                        <Tooltip title="Change to the 'Time to due Date' input that allows you to insert the time to the due date instead of the specific date">
-                                                            <HourglassOutlined
-                                                                className="due-date-toogle"
-                                                                style={{ right: this.state.showTimeToDueDateInputField ? '20px' : '80px' }}
-                                                                onClick={() => this.setState({ showTimeToDueDateInputField: !this.state.showTimeToDueDateInputField })} />
-                                                        </Tooltip>
-                                                    </Space>
+                                                    <DatePicker disabled={!enabledForm} format={'DD/MM/YYYY HH:00'} showTime />
 
                                                 </Form.Item >
                                                 :
                                                 <Form.Item
-                                                    label="Due Date"
+                                                    label={
+                                                        <Space split={<Divider type="vertical" />}>
+                                                            Time to date
+                                                            <Tooltip title="Change to the 'Due Date' input that allows you to insert the specific Due Date">
+                                                                <HourglassOutlined
+                                                                    className="due-date-toogle"
+                                                                    onClick={() => this.onDueDateFieldToogleChange()} />
+                                                            </Tooltip>
+                                                        </Space>
+                                                    }
                                                     name="period"
                                                     rules={[{ required: true, message: 'The period value is required' }, { validator: (_, period) => this.validateManualPeriodInput(period) }]}
                                                 >
-                                                    <Space split={<Divider type="vertical" />}>
-                                                        <Input disabled={!enabledForm} placeholder="Specific period (eg. 3w 4d 12h)" />
-                                                        <Tooltip title="Change to the 'Time to due Date' input that allows you to insert the time to the due date instead of the specific date">
-                                                            <HourglassOutlined
-                                                                className="due-date-toogle"
-                                                                style={{ right: this.state.showTimeToDueDateInputField ? '20px' : '80px' }}
-                                                                onClick={() => this.setState({ showTimeToDueDateInputField: !this.state.showTimeToDueDateInputField })} />
-                                                        </Tooltip>
-                                                    </Space>
+                                                    <Input disabled={!enabledForm} placeholder="Specific period (eg. 3w 4d 12h)" />
                                                 </Form.Item>
                                         }
 

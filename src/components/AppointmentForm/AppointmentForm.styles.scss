@@ -1,15 +1,4 @@
 .due-date-wrapper {
-    .ant-space-horizontal {
-        width: 100%;
-
-        & > .ant-space-item:nth-child(1) {
-            flex: 1;
-        }
-        & > .ant-space-item:nth-child(2) {
-            flex: 0;
-        }
-    }
-
     .due-date-toogle {
         svg {
             height: 24px;
